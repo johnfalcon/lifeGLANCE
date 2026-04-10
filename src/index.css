@@ -749,7 +749,7 @@ button, input, select, textarea {
 }
 
 /* ─── Settings Modal ────────────────────────────────────────────────────────── */
-.settings-sheet { max-width: 580px; width: 100%; }
+.settings-sheet { max-width: 560px; width: 100%; }
 
 /* Full-width, taller text-size tabs inside settings */
 .settings-sheet .zoom-tabs { width: 100%; }
