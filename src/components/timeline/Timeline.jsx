@@ -83,12 +83,13 @@ const Timeline = forwardRef(function Timeline({ milestones, zoom, textSize = 'no
   const today     = new Date()
   const centerMs  = today.getTime() + panMs
   const { startMs, endMs } = getTimeRange(zoom, centerMs)
-  const ticks     = getTickMarks(zoom, startMs, endMs, w)
-  const todayX    = dateToX(today.getTime(), startMs, endMs, w)
-  // How many lanes fit between the axis and the top/bottom edge (with 16px margin)
-  const maxLane   = Math.max(0, Math.floor((axisY - CONN_LEN - CARD_H2 - 16) / CARD_STEP))
-  const withLanes = assignLanes(milestones, maxLane)
-  const msPerPx   = getMsPerPx(zoom, w)
+  const ticks        = getTickMarks(zoom, startMs, endMs, w)
+  const todayX       = dateToX(today.getTime(), startMs, endMs, w)
+  const msPerPx      = getMsPerPx(zoom, w)
+  // Max lanes that fit between axis and container edge (16px safety margin)
+  const maxLane      = Math.max(0, Math.floor((axisY - CONN_LEN - CARD_H2 - 16) / CARD_STEP))
+  // Only bump to a higher lane when cards would actually overlap horizontally
+  const withLanes    = assignLanes(milestones, maxLane, msPerPx * CARD_W)
 
   // ── Pan ─────────────────────────────────────────────────────────────────────
   const startDrag = useCallback((clientX) => {

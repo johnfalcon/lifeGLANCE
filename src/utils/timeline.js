@@ -83,15 +83,38 @@ export function getTickMarks(zoom, startMs, endMs, width) {
 }
 
 // Assign above/below lanes to sorted milestones.
-// maxLane caps how far cards can stray from the axis (caller computes from geometry).
-// Returns array of milestones with { above: bool, lane: number (0-based) }
-export function assignLanes(milestones, maxLane = 0) {
+//   maxLane      – max lane index that fits in the container (caller computes)
+//   cardTimeSpan – ms equivalent of one card width at current zoom (for overlap detection)
+//
+// Algorithm: greedy by time proximity. For each milestone try lane 0; only bump
+// to a higher lane if another card on the same side is within one card-width of
+// time. This means sparse milestones always stay at lane 0 regardless of sort
+// order, and only genuinely clustered milestones spread outward.
+export function assignLanes(milestones, maxLane = 0, cardTimeSpan = 0) {
   const sorted = [...milestones].sort(
     (a, b) => new Date(a.date) - new Date(b.date)
   )
-  return sorted.map((m, i) => ({
-    ...m,
-    above: i % 2 === 0,
-    lane: Math.min(Math.floor(i / 2), maxLane),
-  }))
+
+  // Track placed cards per side: [{ ms, lane }]
+  const placed = { above: [], below: [] }
+
+  return sorted.map((m, i) => {
+    const above = i % 2 === 0
+    const side  = above ? 'above' : 'below'
+    const mMs   = new Date(m.date).getTime()
+
+    let lane = 0
+    if (cardTimeSpan > 0) {
+      while (lane < maxLane) {
+        const conflict = placed[side].some(
+          p => p.lane === lane && Math.abs(p.ms - mMs) < cardTimeSpan
+        )
+        if (!conflict) break
+        lane++
+      }
+    }
+
+    placed[side].push({ ms: mMs, lane })
+    return { ...m, above, lane }
+  })
 }
