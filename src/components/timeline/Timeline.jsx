@@ -323,12 +323,24 @@ const Timeline = forwardRef(function Timeline(
                 fontSize="0.52em" fontFamily="'Courier Prime', monospace"
               >{relStr}</text>
 
-              {/* Photo indicator — tiny camera in top-right corner */}
+              {/* Vintage camera indicator — top-right corner */}
               {m.photo_uri && (
-                <g opacity={isHL ? 0.9 : 0.5}>
-                  <rect x={cardX + CARD_W - 14} y={cardY + 5} width={10} height={7} rx={1.5}
-                    fill="none" stroke={m.color} strokeWidth={0.8} />
-                  <circle cx={cardX + CARD_W - 9} cy={cardY + 8.5} r={2}
+                <g transform={`translate(${cardX + CARD_W - 17},${cardY + 3})`}
+                   opacity={isHL ? 0.9 : 0.52}>
+                  {/* body */}
+                  <rect x={0} y={2.5} width={14} height={8} rx={1.3}
+                    fill="none" stroke={m.color} strokeWidth={0.85} />
+                  {/* viewfinder bump */}
+                  <rect x={2} y={0.5} width={4} height={2.8} rx={0.7}
+                    fill="none" stroke={m.color} strokeWidth={0.75} />
+                  {/* lens ring */}
+                  <circle cx={7} cy={6.5} r={2.6}
+                    fill="none" stroke={m.color} strokeWidth={0.85} />
+                  {/* lens glass */}
+                  <circle cx={7} cy={6.5} r={1.25}
+                    fill={m.color} opacity={0.55} />
+                  {/* shutter button */}
+                  <circle cx={11.8} cy={4} r={0.75}
                     fill={m.color} />
                 </g>
               )}
