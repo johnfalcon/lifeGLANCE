@@ -54,6 +54,7 @@ const Timeline = forwardRef(function Timeline(
 
   const wrapRef  = useRef(null)
   const [size, setSize] = useState({ w: 800, h: 340 })
+  const [photoTip, setPhotoTip] = useState(null) // { uri, x, y }
   // panMsRef always tracks the latest value for animation calculations
   const panMsRef = useRef(panMs)
   const animRef  = useRef(null)
@@ -372,7 +373,10 @@ const Timeline = forwardRef(function Timeline(
               {/* Vintage camera indicator — top-right corner */}
               {m.photo_uri && (
                 <g transform={`translate(${cardX + CARD_W - 21},${cardY + 3})`}
-                   opacity={isHL ? 0.9 : 0.52}>
+                   opacity={isHL ? 0.9 : 0.52}
+                   style={{ cursor: 'zoom-in' }}
+                   onMouseEnter={e => setPhotoTip({ uri: m.photo_uri, x: e.clientX, y: e.clientY })}
+                   onMouseLeave={() => setPhotoTip(null)}>
                   {/* body */}
                   <rect x={0} y={2.5} width={14} height={8} rx={1.3}
                     fill="none" stroke={m.color} strokeWidth={0.85} />
@@ -452,6 +456,27 @@ const Timeline = forwardRef(function Timeline(
         <rect x={0}    y={0} width={70}   height={h} fill="url(#tl-left)"  pointerEvents="none" />
         <rect x={w-70} y={0} width={70}   height={h} fill="url(#tl-right)" pointerEvents="none" />
       </svg>
+
+      {photoTip && (
+        <div style={{
+          position: 'fixed',
+          left: photoTip.x,
+          top:  photoTip.y,
+          transform: 'translate(-50%, calc(-100% - 12px))',
+          pointerEvents: 'none',
+          zIndex: 9999,
+        }}>
+          <img src={photoTip.uri} alt="" style={{
+            display: 'block',
+            maxWidth: 220,
+            maxHeight: 180,
+            objectFit: 'cover',
+            borderRadius: 4,
+            border: '1px solid rgba(200,169,110,0.35)',
+            boxShadow: '0 6px 24px rgba(0,0,0,0.7)',
+          }} />
+        </div>
+      )}
     </div>
   )
 })
