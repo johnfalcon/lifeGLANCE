@@ -54,7 +54,7 @@ export default function StatsPanel({ past, future, pastIdx, futureIdx, onPastCha
   const showFuture = viewMode !== 'past'
 
   return (
-    <div className="stat-panels">
+    <div className="stat-panels" style={viewMode === 'future' ? { justifyContent: 'flex-end' } : undefined}>
       {/* Left — past */}
       {showPast && <div className="stat-panel"
         onTouchStart={e => { pastSwipeX.current = e.touches[0].clientX }}
