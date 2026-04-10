@@ -749,7 +749,11 @@ button, input, select, textarea {
 }
 
 /* ─── Settings Modal ────────────────────────────────────────────────────────── */
-.settings-sheet { max-width: 500px; width: 100%; }
+.settings-sheet { max-width: 580px; width: 100%; }
+
+/* Full-width, taller text-size tabs inside settings */
+.settings-sheet .zoom-tabs { width: 100%; }
+.settings-sheet .zoom-tab  { flex: 1; text-align: center; padding: 0.55rem 0.5rem; }
 
 .settings-section {
   display: flex;
@@ -822,7 +826,7 @@ button, input, select, textarea {
 .settings-palette {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.25rem;
 }
 
 .settings-swatch {
