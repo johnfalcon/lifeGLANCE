@@ -30,9 +30,10 @@ export default function TimelineView({ milestones, setMilestones }) {
     () => localStorage.getItem('lifeglance-text-size') || 'normal'
   )
   const [customYears, setCustomYears] = useState(15)
-  const [pastIdx,     setPastIdx]    = useState(0)
-  const [futureIdx,   setFutureIdx]  = useState(0)
-  const [selectedId,  setSelectedId] = useState(null)
+  const [pastIdx,        setPastIdx]       = useState(0)
+  const [futureIdx,      setFutureIdx]     = useState(0)
+  const [selectedId,     setSelectedId]    = useState(null)
+  const [highlightsActive, setHighlightsActive] = useState(true)
 
   const timelineRef = useRef(null)
   const zoomWrapRef = useRef(null)
@@ -101,16 +102,17 @@ export default function TimelineView({ milestones, setMilestones }) {
     setFutureIdx(i => Math.min(i, Math.max(0, future.length - 1)))
   }, [future.length])
 
-  const highlightedIds = new Set(
-    [past[pastIdx]?.id, future[futureIdx]?.id].filter(Boolean)
-  )
+  const highlightedIds = highlightsActive
+    ? new Set([past[pastIdx]?.id, future[futureIdx]?.id].filter(Boolean))
+    : new Set()
 
   // ── Milestone click: first click selects + centers, second click opens detail ─
   function handleMilestoneClick(m) {
-    if (selectedId === m.id) {
+    if (highlightsActive && selectedId === m.id) {
       setDetail(m)
     } else {
       setSelectedId(m.id)
+      setHighlightsActive(true)
       timelineRef.current?.panToMs(new Date(m.date).getTime())
       // Sync stat panel to the selected milestone
       const pastI = past.findIndex(p => p.id === m.id)
@@ -121,6 +123,15 @@ export default function TimelineView({ milestones, setMilestones }) {
         if (futureI !== -1) setFutureIdx(futureI)
       }
     }
+  }
+
+  // ── Jump to today ─────────────────────────────────────────────────────────────
+  function handleJumpToToday() {
+    timelineRef.current?.resetPan()
+    setPastIdx(0)
+    setFutureIdx(0)
+    setSelectedId(null)
+    setHighlightsActive(false)
   }
 
   // ── CRUD ─────────────────────────────────────────────────────────────────────
@@ -246,6 +257,7 @@ export default function TimelineView({ milestones, setMilestones }) {
               const clamped = Math.max(0, Math.min(i, past.length - 1))
               setPastIdx(clamped)
               setSelectedId(null)
+              setHighlightsActive(true)
               const m = past[clamped]
               if (m) timelineRef.current?.panToMs(new Date(m.date).getTime())
             }}
@@ -253,6 +265,7 @@ export default function TimelineView({ milestones, setMilestones }) {
               const clamped = Math.max(0, Math.min(i, future.length - 1))
               setFutureIdx(clamped)
               setSelectedId(null)
+              setHighlightsActive(true)
               const m = future[clamped]
               if (m) timelineRef.current?.panToMs(new Date(m.date).getTime())
             }}
@@ -306,7 +319,7 @@ export default function TimelineView({ milestones, setMilestones }) {
           </div>
         )}
 
-        <button className="today-btn" onClick={() => timelineRef.current?.resetPan()}>
+        <button className="today-btn" onClick={handleJumpToToday}>
           jump to today
         </button>
       </div>
