@@ -6,7 +6,7 @@ import MilestoneDetail   from '../milestone/MilestoneDetail'
 import TypewriterText    from '../ui/TypewriterText'
 import { ZOOM_LEVELS }   from '../../utils/timeline'
 import { CATEGORIES }    from '../../utils/colors'
-import { addMilestone, updateMilestone, deleteMilestone } from '../../data/milestones'
+import { addMilestone, updateMilestone, deleteMilestone, restoreMilestones } from '../../data/milestones'
 
 const ZOOM_RANK = { decades: 5, '30yr': 4, years: 3, months: 2, weeks: 1, custom: 3.5 }
 
@@ -17,24 +17,27 @@ const TEXT_SIZES = {
   bigger: '30px',
 }
 
-// Zoom animation duration must match CSS transition duration
 const ZOOM_ANIM_MS = 380
 
 export default function TimelineView({ milestones, setMilestones }) {
-  const [zoom,       setZoom]      = useState('years')
-  const [zoomAnim,   setZoomAnim]  = useState('')
-  const [filter,     setFilter]    = useState('all')
-  const [addOpen,    setAddOpen]   = useState(false)
-  const [editTarget, setEditTarget] = useState(null)
-  const [detail,     setDetail]    = useState(null)
-  const [textSize,   setTextSize]  = useState(
+  const [zoom,        setZoom]       = useState('years')
+  const [zoomAnim,    setZoomAnim]   = useState('')
+  const [filter,      setFilter]     = useState('all')
+  const [addOpen,     setAddOpen]    = useState(false)
+  const [editTarget,  setEditTarget] = useState(null)
+  const [detail,      setDetail]     = useState(null)
+  const [textSize,    setTextSize]   = useState(
     () => localStorage.getItem('lifeglance-text-size') || 'normal'
   )
-  const [customYears, setCustomYears] = useState(15)   // ±15 yr = 30-year window
-  const timelineRef  = useRef(null)
-  const zoomWrapRef  = useRef(null)
-  const zoomRef      = useRef('years')   // mirrors zoom state, readable in event handlers
-  const zoomLocked   = useRef(false)     // throttle: one zoom step per animation
+  const [customYears, setCustomYears] = useState(15)
+  const [pastIdx,     setPastIdx]    = useState(0)
+  const [futureIdx,   setFutureIdx]  = useState(0)
+
+  const timelineRef = useRef(null)
+  const zoomWrapRef = useRef(null)
+  const zoomRef     = useRef('years')
+  const zoomLocked  = useRef(false)
+  const restoreRef  = useRef(null)
 
   // Apply font size globally
   useEffect(() => {
@@ -47,21 +50,14 @@ export default function TimelineView({ milestones, setMilestones }) {
     if (newZoom === zoom) return
     const dir = ZOOM_RANK[newZoom] > ZOOM_RANK[zoom] ? 'zooming-out' : 'zooming-in'
     setZoomAnim(dir)
-    setTimeout(() => {
-      setZoom(newZoom)
-      setZoomAnim('')
-    }, ZOOM_ANIM_MS)
+    setTimeout(() => { setZoom(newZoom); setZoomAnim('') }, ZOOM_ANIM_MS)
   }, [zoom])
 
-  // Keep ref in sync so the wheel handler always sees current zoom
   useEffect(() => { zoomRef.current = zoom }, [zoom])
-
-  // Stable ref to handleZoom so the wheel effect doesn't re-subscribe on every zoom change
   const handleZoomRef = useRef(handleZoom)
   useEffect(() => { handleZoomRef.current = handleZoom }, [handleZoom])
 
-  // ── Wheel zoom ───────────────────────────────────────────────────────────────
-  // Must be a non-passive listener to call preventDefault (stops page scroll)
+  // Wheel zoom (non-passive so we can preventDefault)
   useEffect(() => {
     const el = zoomWrapRef.current
     if (!el) return
@@ -69,8 +65,6 @@ export default function TimelineView({ milestones, setMilestones }) {
       e.preventDefault()
       if (zoomLocked.current) return
       const idx     = ZOOM_LEVELS.indexOf(zoomRef.current)
-      // scroll up (deltaY < 0) → zoom in → toward 'weeks' (higher index)
-      // scroll down (deltaY > 0) → zoom out → toward 'decades' (lower index)
       const nextIdx = e.deltaY < 0 ? idx + 1 : idx - 1
       if (nextIdx < 0 || nextIdx >= ZOOM_LEVELS.length) return
       zoomLocked.current = true
@@ -79,16 +73,36 @@ export default function TimelineView({ milestones, setMilestones }) {
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, []) // stable refs — no deps needed
+  }, [])
 
   // ── Filter ───────────────────────────────────────────────────────────────────
-  // Only show filter chips for categories that appear in the data
   const presentCategories = CATEGORIES.filter(cat =>
     milestones.some(m => m.category === cat.id)
   )
   const filteredMilestones = filter === 'all'
     ? milestones
     : milestones.filter(m => m.category === filter)
+
+  // ── Past / future for stat panel ─────────────────────────────────────────────
+  const now    = new Date()
+  const past   = [...filteredMilestones]
+    .filter(m => new Date(m.date) < now)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))   // most-recent first
+  const future = [...filteredMilestones]
+    .filter(m => new Date(m.date) >= now)
+    .sort((a, b) => new Date(a.date) - new Date(b.date))   // soonest first
+
+  // Clamp indices when lists shrink (filter change, deletion)
+  useEffect(() => {
+    setPastIdx(i => Math.min(i, Math.max(0, past.length - 1)))
+  }, [past.length])
+  useEffect(() => {
+    setFutureIdx(i => Math.min(i, Math.max(0, future.length - 1)))
+  }, [future.length])
+
+  const highlightedIds = new Set(
+    [past[pastIdx]?.id, future[futureIdx]?.id].filter(Boolean)
+  )
 
   // ── CRUD ─────────────────────────────────────────────────────────────────────
   async function handleSave(data, existing) {
@@ -106,8 +120,34 @@ export default function TimelineView({ milestones, setMilestones }) {
     setMilestones(prev => prev.filter(m => m.id !== id))
   }
 
-  function openEdit(m) { setEditTarget(m); setAddOpen(true) }
+  function openEdit(m)  { setEditTarget(m); setAddOpen(true) }
   function closeSheet() { setAddOpen(false); setEditTarget(null) }
+
+  // ── Backup ───────────────────────────────────────────────────────────────────
+  function handleSaveBackup() {
+    const json = JSON.stringify(milestones, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `lifeglance-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function handleRestoreFile(e) {
+    const file = e.target.files[0]
+    if (!file) return
+    try {
+      const text     = await file.text()
+      const data     = JSON.parse(text)
+      const restored = await restoreMilestones(data)
+      setMilestones(restored)
+    } catch (err) {
+      console.error('Restore failed:', err)
+    }
+    e.target.value = ''
+  }
 
   const isEmpty = filteredMilestones.length === 0 && milestones.length === 0
 
@@ -125,70 +165,65 @@ export default function TimelineView({ milestones, setMilestones }) {
             {/* Text size */}
             <div className="zoom-tabs">
               {Object.keys(TEXT_SIZES).map(s => (
-                <button
-                  key={s}
+                <button key={s}
                   className={`zoom-tab ${textSize === s ? 'active' : ''}`}
-                  onClick={() => setTextSize(s)}
-                >
-                  {s}
-                </button>
+                  onClick={() => setTextSize(s)}>{s}</button>
               ))}
             </div>
 
             {/* Zoom level */}
             <div className="zoom-tabs">
               {ZOOM_LEVELS.map(z => (
-                <button
-                  key={z}
+                <button key={z}
                   className={`zoom-tab ${zoom === z ? 'active' : ''}`}
-                  onClick={() => handleZoom(z)}
-                >
-                  {z}
-                </button>
+                  onClick={() => handleZoom(z)}>{z}</button>
               ))}
               <button
                 className={`zoom-tab ${zoom === 'custom' ? 'active' : ''}`}
-                onClick={() => handleZoom('custom')}
-              >
-                custom
-              </button>
+                onClick={() => handleZoom('custom')}>custom</button>
             </div>
           </div>
 
-          {/* Zoom indicator / custom range input */}
+          {/* Zoom indicator / custom input */}
           <div className="zoom-indicator">
             {zoom === 'custom' ? (
               <div className="custom-zoom-row">
                 <span>±</span>
-                <input
-                  className="custom-zoom-input"
-                  type="number"
-                  min="1"
-                  max="200"
+                <input className="custom-zoom-input" type="number" min="1" max="200"
                   value={customYears}
                   onChange={e => {
                     const v = parseInt(e.target.value, 10)
                     if (!isNaN(v)) setCustomYears(Math.max(1, Math.min(200, v)))
-                  }}
-                />
+                  }} />
                 <span>yr</span>
               </div>
             ) : (
-              <TypewriterText
-                key={zoom}
-                text={`viewing: ${zoom}`}
-                options={{ delay: 38, jitter: 18 }}
-                showCursor={false}
-                hideCursorWhenDone
-              />
+              <TypewriterText key={zoom} text={`viewing: ${zoom}`}
+                options={{ delay: 38, jitter: 18 }} showCursor={false} hideCursorWhenDone />
             )}
+          </div>
+
+          {/* Backup links */}
+          <div className="header-actions">
+            <button className="action-link" onClick={handleSaveBackup}>save backup</button>
+            <span className="action-sep">·</span>
+            <button className="action-link" onClick={() => restoreRef.current?.click()}>restore</button>
+            <input ref={restoreRef} type="file" accept=".json"
+              style={{ display: 'none' }} onChange={handleRestoreFile} />
           </div>
         </div>
       </div>
 
       {/* ── Body ───────────────────────────────────────────────────────────── */}
       <div className="timeline-body">
-        {!isEmpty && <StatsPanel milestones={filteredMilestones} />}
+        {!isEmpty && (
+          <StatsPanel
+            past={past} future={future}
+            pastIdx={pastIdx} futureIdx={futureIdx}
+            onPastChange={i => setPastIdx(Math.max(0, Math.min(i, past.length - 1)))}
+            onFutureChange={i => setFutureIdx(Math.max(0, Math.min(i, future.length - 1)))}
+          />
+        )}
 
         <div ref={zoomWrapRef} className={`timeline-zoom-wrap ${zoomAnim}`}>
           <Timeline
@@ -197,6 +232,7 @@ export default function TimelineView({ milestones, setMilestones }) {
             zoom={zoom}
             textSize={textSize}
             customHalfMs={customYears * 365.25 * 24 * 3600 * 1000}
+            highlightedIds={highlightedIds}
             onMilestoneClick={setDetail}
           />
         </div>
@@ -204,17 +240,13 @@ export default function TimelineView({ milestones, setMilestones }) {
         {isEmpty && (
           <div className="empty-state">
             <div className="empty-state-label">
-              no milestones yet.<br />
-              add one to start your timeline.
+              no milestones yet.<br />add one to start your timeline.
             </div>
           </div>
         )}
-
         {!isEmpty && filteredMilestones.length === 0 && (
           <div className="empty-state">
-            <div className="empty-state-label">
-              no milestones in this category.
-            </div>
+            <div className="empty-state-label">no milestones in this category.</div>
           </div>
         )}
       </div>
@@ -227,18 +259,12 @@ export default function TimelineView({ milestones, setMilestones }) {
 
         {presentCategories.length > 0 && (
           <div className="filter-chips-inline">
-            <button
-              className={`filter-chip ${filter === 'all' ? 'active' : ''}`}
-              onClick={() => setFilter('all')}
-            >
-              all
-            </button>
+            <button className={`filter-chip ${filter === 'all' ? 'active' : ''}`}
+              onClick={() => setFilter('all')}>all</button>
             {presentCategories.map(cat => (
-              <button
-                key={cat.id}
+              <button key={cat.id}
                 className={`filter-chip ${filter === cat.id ? 'active' : ''}`}
-                onClick={() => setFilter(filter === cat.id ? 'all' : cat.id)}
-              >
+                onClick={() => setFilter(filter === cat.id ? 'all' : cat.id)}>
                 <span className="filter-dot" style={{ background: cat.color }} />
                 {cat.label}
               </button>

@@ -508,6 +508,50 @@ button, input, select, textarea {
 .stat-milestone-date  { font-size: 0.63rem; color: var(--text-muted); margin-top: 0.1rem; }
 .stat-milestone-rel   { font-size: 0.63rem; color: var(--amber);      margin-top: 0.08rem; }
 
+/* ─── Stat panel navigation ────────────────────────────────────────────────── */
+.stat-nav-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.25rem;
+}
+.stat-nav-row-right { justify-content: flex-end; }
+.stat-nav-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 0.58rem;
+  padding: 0.08rem 0.32rem;
+  cursor: pointer;
+  line-height: 1.4;
+  transition: color 0.15s, border-color 0.15s;
+}
+.stat-nav-btn:hover:not(:disabled) { color: var(--amber); border-color: var(--amber-dim); }
+.stat-nav-btn:disabled { opacity: 0.25; cursor: default; }
+.stat-nav-pos { font-size: 0.56rem; color: var(--text-muted); letter-spacing: 0.04em; }
+
+/* ─── Header backup links ───────────────────────────────────────────────────── */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+.action-link {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 0.56rem;
+  cursor: pointer;
+  padding: 0;
+  letter-spacing: 0.05em;
+  transition: color 0.15s;
+}
+.action-link:hover { color: var(--amber); }
+.action-sep { color: var(--border); font-size: 0.56rem; }
+
 /* ─── Sheet / Drawer ───────────────────────────────────────────────────────── */
 .sheet-overlay {
   position: fixed;

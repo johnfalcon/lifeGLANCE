@@ -96,10 +96,10 @@ export function getTickMarks(zoom, startMs, endMs, width) {
   return ticks
 }
 
-// Deterministic hash → 0..1 float, stable per milestone ID
-function seededRand(id) {
+// Deterministic hash of an arbitrary string → 0..1 float
+function seededHash(str) {
   let h = 0
-  for (const c of String(id)) h = Math.imul(31, h) + c.charCodeAt(0) | 0
+  for (const c of str) h = Math.imul(31, h) + c.charCodeAt(0) | 0
   return (h >>> 0) / 4294967295
 }
 
@@ -107,9 +107,9 @@ function seededRand(id) {
 //   maxLane      – max lane index that fits in the container (caller computes)
 //   cardTimeSpan – ms equivalent of one card width at current zoom (for overlap detection)
 //
-// Algorithm: each milestone has a seeded-random preferred lane (lane 1 ~30% of the time
-// when space allows). If that lane has a time-proximity conflict, fall back to the first
-// conflict-free lane. This gives organic spread without deterministic uniformity.
+// Two independent hash values per milestone:
+//   laneRand – drives lane preference (~55% chance of preferring lane 1)
+//   connRand – drives connector-length jitter in the renderer (0 → 60% extra)
 export function assignLanes(milestones, maxLane = 0, cardTimeSpan = 0) {
   const sorted = [...milestones].sort(
     (a, b) => new Date(a.date) - new Date(b.date)
@@ -122,23 +122,24 @@ export function assignLanes(milestones, maxLane = 0, cardTimeSpan = 0) {
     const side  = above ? 'above' : 'below'
     const mMs   = new Date(m.date).getTime()
 
+    // Two independent seeds so lane choice and connector length don't correlate
+    const laneRand = seededHash(String(m.id) + String(m.date).slice(0, 10))
+    const connRand = seededHash(String(m.id) + '~conn')
+
     const hasConflict = (l) =>
       cardTimeSpan > 0 &&
       placed[side].some(p => p.lane === l && Math.abs(p.ms - mMs) < cardTimeSpan)
 
-    // Seeded random: ~30% of milestones prefer lane 1 for visual variety
-    const rand       = seededRand(m.id)
-    const preferLane = (maxLane >= 1 && rand < 0.30) ? 1 : 0
+    // ~55% of milestones spontaneously prefer lane 1 for visual variety
+    const preferLane = (maxLane >= 1 && laneRand < 0.55) ? 1 : 0
 
     let lane = preferLane
     if (hasConflict(lane)) {
-      // Scan upward from 0 for first free lane
       lane = 0
       while (lane < maxLane && hasConflict(lane)) lane++
-      // If still conflicting at maxLane, accept it (unavoidable dense cluster)
     }
 
     placed[side].push({ ms: mMs, lane })
-    return { ...m, above, lane }
+    return { ...m, above, lane, connRand }
   })
 }

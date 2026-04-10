@@ -67,3 +67,11 @@ export async function updateMilestone(id, updates, existing) {
 export async function deleteMilestone(id) {
   await dbDelete(id)
 }
+
+// Clear all milestones and replace with the supplied array (preserves original IDs)
+export async function restoreMilestones(items) {
+  const existing = await dbGetAll()
+  for (const m of existing) await dbDelete(m.id)
+  for (const m of items)    await dbPut(m)
+  return items
+}
