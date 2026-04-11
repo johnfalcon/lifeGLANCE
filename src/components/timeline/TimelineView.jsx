@@ -50,6 +50,8 @@ export default function TimelineView({ milestones, setMilestones }) {
   const [birthday,      setBirthday]      = useState(
     () => localStorage.getItem('lifeglance-birthday') || ''
   )
+  const [canUndo,       setCanUndo]       = useState(false)
+  const [canRedo,       setCanRedo]       = useState(false)
 
   const timelineRef    = useRef(null)
   const zoomWrapRef    = useRef(null)
@@ -57,6 +59,7 @@ export default function TimelineView({ milestones, setMilestones }) {
   const zoomRef        = useRef('years')
   const zoomLocked     = useRef(false)
   const customInputRef = useRef(null)
+  const historyRef     = useRef(null)   // { stack: Milestone[][], idx: number }
 
   // Apply font size globally
   useEffect(() => {
@@ -198,6 +201,47 @@ export default function TimelineView({ milestones, setMilestones }) {
     if (timelineRef.current) timelineRef.current.resetPan()
   }
 
+  // ── Undo / redo ───────────────────────────────────────────────────────────────
+  // Snapshot-based: each mutation stores the full milestones array.
+  // historyRef.current = { stack: Milestone[][], idx: number }
+  // stack[idx] is the current state; stack[idx-1] is "one undo ago".
+
+  function pushHistory(newMs) {
+    if (!historyRef.current) {
+      // lazy init: capture the pre-mutation state as the base entry
+      historyRef.current = { stack: [milestones], idx: 0 }
+    }
+    const h = historyRef.current
+    h.stack = h.stack.slice(0, h.idx + 1)   // discard any redo history
+    h.stack.push(newMs)
+    if (h.stack.length > 51) h.stack.shift() // cap memory at 50 undos
+    else h.idx++
+    setCanUndo(h.idx > 0)
+    setCanRedo(false)
+  }
+
+  async function handleUndo() {
+    const h = historyRef.current
+    if (!h || h.idx === 0) return
+    h.idx--
+    const snapshot = h.stack[h.idx]
+    await restoreMilestones(snapshot)
+    setMilestones(snapshot)
+    setCanUndo(h.idx > 0)
+    setCanRedo(true)
+  }
+
+  async function handleRedo() {
+    const h = historyRef.current
+    if (!h || h.idx >= h.stack.length - 1) return
+    h.idx++
+    const snapshot = h.stack[h.idx]
+    await restoreMilestones(snapshot)
+    setMilestones(snapshot)
+    setCanUndo(true)
+    setCanRedo(h.idx < h.stack.length - 1)
+  }
+
   // ── Keyboard shortcuts ────────────────────────────────────────────────────────
   // Use a ref so the listener is registered once but always sees fresh state
   const keyStateRef = useRef(null)
@@ -205,6 +249,7 @@ export default function TimelineView({ milestones, setMilestones }) {
     pastIdx, futureIdx, past, future, zoom,
     addOpen, detail, settingsOpen, helpOpen, searchOpen,
     handlePastNav, handleFutureNav, handleJumpToToday, handleViewMode, closeSheet,
+    handleUndo, handleRedo, canUndo, canRedo,
   }
 
   useEffect(() => {
@@ -311,6 +356,23 @@ export default function TimelineView({ milestones, setMilestones }) {
           }
           break
         }
+        case 'z': case 'Z': {
+          if (anyModal) break
+          if (e.metaKey || e.ctrlKey) {
+            e.preventDefault()
+            if (e.shiftKey) { if (s.canRedo) s.handleRedo() }
+            else            { if (s.canUndo) s.handleUndo() }
+          }
+          break
+        }
+        case 'y': case 'Y': {
+          if (anyModal) break
+          if ((e.metaKey || e.ctrlKey) && !e.shiftKey) {
+            e.preventDefault()
+            if (s.canRedo) s.handleRedo()
+          }
+          break
+        }
         case 'Escape': {
           if (customInputRef.current && document.activeElement === customInputRef.current) {
             customInputRef.current.blur()
@@ -334,16 +396,22 @@ export default function TimelineView({ milestones, setMilestones }) {
   async function handleSave(data, existing) {
     if (existing) {
       const updated = await updateMilestone(existing.id, data, existing)
-      setMilestones(prev => prev.map(m => m.id === existing.id ? updated : m))
+      const newMs = milestones.map(m => m.id === existing.id ? updated : m)
+      pushHistory(newMs)
+      setMilestones(newMs)
     } else {
       const m = await addMilestone(data)
-      setMilestones(prev => [...prev, m])
+      const newMs = [...milestones, m]
+      pushHistory(newMs)
+      setMilestones(newMs)
     }
   }
 
   async function handleDelete(id) {
     await deleteMilestone(id)
-    setMilestones(prev => prev.filter(m => m.id !== id))
+    const newMs = milestones.filter(m => m.id !== id)
+    pushHistory(newMs)
+    setMilestones(newMs)
   }
 
   function openEdit(m)  { setEditTarget(m); setAddOpen(true) }
@@ -452,6 +520,9 @@ export default function TimelineView({ milestones, setMilestones }) {
       const data     = JSON.parse(text)
       const restored = await restoreMilestones(data)
       setMilestones(restored)
+      historyRef.current = { stack: [restored], idx: 0 }
+      setCanUndo(false)
+      setCanRedo(false)
     } catch (err) {
       console.error('Restore failed:', err)
     }

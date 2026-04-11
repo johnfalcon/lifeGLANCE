@@ -3,20 +3,22 @@ import React, { useMemo } from 'react'
 const VERSION = '0.1.0'
 
 const SHORTCUTS = [
-  { keys: ['←', '→'],  desc: 'cycle past / future milestones'   },
-  { keys: ['↑', '↓'],  desc: 'zoom out / in'                     },
-  { keys: ['1–9'],      desc: 'custom zoom to N years'            },
-  { keys: ['C'],        desc: 'custom zoom (focus input)'         },
-  { keys: ['T'],        desc: 'jump to today'                     },
-  { keys: ['P'],        desc: 'past view'                         },
-  { keys: ['A'],        desc: 'all view'                          },
-  { keys: ['F'],        desc: 'future view'                       },
-  { keys: ['N'],        desc: 'new milestone'                     },
-  { keys: ['E'],        desc: 'export image'                      },
-  { keys: ['/'],        desc: 'search milestones'                 },
-  { keys: ['S'],        desc: 'settings'                          },
-  { keys: ['?'],        desc: 'help'                              },
-  { keys: ['Esc'],      desc: 'close modal / exit input'          },
+  { keys: ['←', '→'],        desc: 'cycle past / future milestones'   },
+  { keys: ['↑', '↓'],        desc: 'zoom out / in'                     },
+  { keys: ['1–9'],            desc: 'custom zoom to N years'            },
+  { keys: ['C'],              desc: 'custom zoom (focus input)'         },
+  { keys: ['T'],              desc: 'jump to today'                     },
+  { keys: ['P'],              desc: 'past view'                         },
+  { keys: ['A'],              desc: 'all view'                          },
+  { keys: ['F'],              desc: 'future view'                       },
+  { keys: ['⌘Z', 'Ctrl+Z'],  desc: 'undo'                              },
+  { keys: ['⌘⇧Z', 'Ctrl+Y'], desc: 'redo'                              },
+  { keys: ['N'],              desc: 'new milestone'                     },
+  { keys: ['E'],              desc: 'export image'                      },
+  { keys: ['/'],              desc: 'search milestones'                 },
+  { keys: ['S'],              desc: 'settings'                          },
+  { keys: ['?'],              desc: 'help'                              },
+  { keys: ['Esc'],            desc: 'close modal / exit input'          },
 ]
 
 function useStorageEstimate() {
