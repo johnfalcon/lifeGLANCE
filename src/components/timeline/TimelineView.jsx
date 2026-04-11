@@ -52,6 +52,7 @@ export default function TimelineView({ milestones, setMilestones }) {
   )
   const [canUndo,       setCanUndo]       = useState(false)
   const [canRedo,       setCanRedo]       = useState(false)
+  const [newlyAddedId,  setNewlyAddedId]  = useState(null)
 
   const timelineRef    = useRef(null)
   const zoomWrapRef    = useRef(null)
@@ -404,6 +405,7 @@ export default function TimelineView({ milestones, setMilestones }) {
       const newMs = [...milestones, m]
       pushHistory(newMs)
       setMilestones(newMs)
+      setNewlyAddedId(m.id)
     }
   }
 
@@ -620,6 +622,7 @@ export default function TimelineView({ milestones, setMilestones }) {
             onClusterClick={handleClusterClick}
             clustering={clustering}
             birthday={birthday}
+            newlyAddedId={newlyAddedId}
           />
         </div>
 

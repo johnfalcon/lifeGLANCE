@@ -106,11 +106,17 @@ export default function Step4Reveal({ onComplete, pastMilestone, futureMilestone
           opacity:    phase === 'cta' ? 1 : 0,
           transform:  phase === 'cta' ? 'translateY(0)' : 'translateY(8px)',
           transition: 'opacity 0.4s ease, transform 0.4s ease',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.75rem',
         }}
       >
         <button className="btn btn-filled" onClick={onComplete}>
           open my timeline →
         </button>
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: "'Courier Prime', monospace" }}>
+          press <kbd style={{ fontSize: '0.85em', padding: '0.1em 0.35em', borderRadius: 3, border: '1px solid var(--border)', color: 'var(--text-dim)' }}>?</kbd> anytime for keyboard shortcuts
+        </div>
       </div>
     </div>
   )

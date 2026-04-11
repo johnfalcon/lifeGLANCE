@@ -34,7 +34,7 @@ function wrapTitle(text, maxChars) {
 }
 
 const Timeline = forwardRef(function Timeline(
-  { milestones, zoom, textSize = 'normal', onMilestoneClick, customHalfMs = 0, highlightedIds, panMs, onPanMs, viewMode = 'all', onClusterClick, clustering = true, birthday = '' },
+  { milestones, zoom, textSize = 'normal', onMilestoneClick, customHalfMs = 0, highlightedIds, panMs, onPanMs, viewMode = 'all', onClusterClick, clustering = true, birthday = '', newlyAddedId = null },
   ref
 ) {
   const remPx = REM_PX[textSize] || 22
@@ -54,7 +54,9 @@ const Timeline = forwardRef(function Timeline(
 
   const wrapRef  = useRef(null)
   const [size, setSize] = useState({ w: 800, h: 340 })
-  const [photoTip, setPhotoTip] = useState(null) // { uri, x, y }
+  const [photoTip,    setPhotoTip]    = useState(null) // { uri, x, y }
+  // Track which IDs have already played their fly-in so we don't re-animate on re-renders
+  const [flyDoneIds,  setFlyDoneIds]  = useState(() => new Set())
   // panMsRef always tracks the latest value for animation calculations
   const panMsRef = useRef(panMs)
   const animRef  = useRef(null)
@@ -306,13 +308,28 @@ const Timeline = forwardRef(function Timeline(
             }),
           }
 
+          // Fly-in for newly saved cards: scale from todayX so the card
+          // appears to launch from today and travel to its date position.
+          // Guard: fall back to standard if today is off-screen.
+          const todayOnScreen = todayX >= 0 && todayX <= w
+          const isFlying = m.id === newlyAddedId && !flyDoneIds.has(m.id) && todayOnScreen
+          const flew     = flyDoneIds.has(m.id)
+          const innerAnimStyle = flew ? { animation: 'none' } : {
+            animation:        isFlying
+              ? 'milestone-fly 0.65s cubic-bezier(0.34,1.56,0.64,1) both'
+              : 'milestone-appear 0.45s cubic-bezier(0.22,1,0.36,1) both',
+            animationDelay:   isFlying ? '0ms' : `${i * 28}ms`,
+            transformOrigin:  isFlying ? `${todayX}px ${axisY}px` : `${x}px ${axisY}px`,
+          }
+
           return (
             <g key={m.id} onClick={() => onMilestoneClick(m)} style={groupStyle} opacity={alpha}>
-              <g style={{
-                animation: 'milestone-appear 0.45s cubic-bezier(0.22,1,0.36,1) both',
-                animationDelay: `${i * 28}ms`,
-                transformOrigin: `${x}px ${axisY}px`,
-              }}>
+              <g
+                style={innerAnimStyle}
+                onAnimationEnd={isFlying
+                  ? () => setFlyDoneIds(prev => new Set([...prev, m.id]))
+                  : undefined}
+              >
               <circle cx={x} cy={axisY}
                 r={isHL ? 5.5 : 3.5}
                 fill={m.color}
