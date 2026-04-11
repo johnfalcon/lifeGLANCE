@@ -535,17 +535,30 @@ button, input, select, textarea {
 .filter-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 
 /* ─── Compact filter (all + dropdown, used at max-width: 1200px) ───────────── */
+/* One shared border on the container; scoped selectors beat .filter-chip.active */
 .filter-compact {
   display: flex;
-  align-items: center;
-  gap: 0;
+  align-items: stretch;
+  border: 1px solid var(--border);
 }
-.filter-dropdown-btn {
-  border-left: none;
-  gap: 0.35rem;
+.filter-compact > .filter-chip {          /* all button */
+  border: none;
+  border-right: 1px solid var(--border);  /* divider */
+}
+.filter-compact > .filter-chip.active {   /* all button when active */
+  color: var(--amber);
+  border-right-color: var(--border);      /* keep divider dim */
 }
 .filter-dropdown-wrap {
   position: relative;
+  display: flex;
+}
+.filter-compact .filter-dropdown-btn {    /* category trigger */
+  border: none;
+  gap: 0.35rem;
+}
+.filter-compact .filter-dropdown-btn.active {
+  color: var(--amber);
 }
 .filter-dropdown {
   position: absolute;
