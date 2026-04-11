@@ -534,6 +534,29 @@ button, input, select, textarea {
 .filter-chip.active { color: var(--amber); border-color: var(--amber); }
 .filter-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 
+/* ─── Compact filter (all + select, used at max-width: 1200px) ─────────────── */
+.filter-compact {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.filter-select {
+  padding: 0.3rem 0.55rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-left: none;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.filter-select:hover { color: var(--text-dim); }
+.filter-select.active { color: var(--amber); border-color: var(--amber); }
+.filter-select option { background: #0F1117; color: var(--text); }
+
 /* ─── Stat panels ──────────────────────────────────────────────────────────── */
 .stat-panels {
   pointer-events: none;

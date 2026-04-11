@@ -117,7 +117,9 @@ const Timeline = forwardRef(function Timeline(
   }, [])
 
   const { w, h } = size
-  const axisY    = Math.round(h * (compactLayout ? 0.78 : 0.50))
+  // Compact: pin axis a fixed distance from the bottom so there's no dead space below.
+  // Normal: centre the axis.
+  const axisY    = compactLayout ? h - 40 : Math.round(h * 0.50)
   const today    = new Date()
   const centerMs = today.getTime() + panMs
   const { startMs, endMs } = getTimeRangeForView(zoom, centerMs, viewMode, customHalfMs)

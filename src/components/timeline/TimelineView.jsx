@@ -45,6 +45,9 @@ export default function TimelineView({ milestones, setMilestones }) {
   const [viewMode,      setViewMode]      = useState('all')
   const [categories,    setCategories]    = useState(loadCategories)
   const [panMs,         setPanMs]         = useState(0)
+  const [compactFilter, setCompactFilter] = useState(
+    () => window.matchMedia('(max-width: 1200px)').matches
+  )
   const [clustering,    setClustering]    = useState(
     () => localStorage.getItem('lifeglance-clustering') !== 'false'
   )
@@ -68,6 +71,13 @@ export default function TimelineView({ milestones, setMilestones }) {
     document.documentElement.style.fontSize = TEXT_SIZES[textSize]
     localStorage.setItem('lifeglance-text-size', textSize)
   }, [textSize])
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1200px)')
+    const handler = (e) => setCompactFilter(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   // ── Zoom ─────────────────────────────────────────────────────────────────────
   const handleZoom = useCallback((newZoom) => {
@@ -676,18 +686,34 @@ export default function TimelineView({ milestones, setMilestones }) {
         </button>
 
         {presentCategories.length > 0 && (
-          <div className="filter-chips-inline">
-            <button className={`filter-chip ${filter === 'all' ? 'active' : ''}`}
-              onClick={() => setFilter('all')}>all</button>
-            {presentCategories.map(cat => (
-              <button key={cat.id}
-                className={`filter-chip ${filter === cat.id ? 'active' : ''}`}
-                onClick={() => setFilter(filter === cat.id ? 'all' : cat.id)}>
-                <span className="filter-dot" style={{ background: cat.color }} />
-                {cat.label}
-              </button>
-            ))}
-          </div>
+          compactFilter ? (
+            <div className="filter-compact">
+              <button className={`filter-chip ${filter === 'all' ? 'active' : ''}`}
+                onClick={() => setFilter('all')}>all</button>
+              <select
+                className={`filter-select ${filter !== 'all' ? 'active' : ''}`}
+                value={filter === 'all' ? '' : filter}
+                onChange={e => setFilter(e.target.value || 'all')}>
+                <option value="">category</option>
+                {presentCategories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.label}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="filter-chips-inline">
+              <button className={`filter-chip ${filter === 'all' ? 'active' : ''}`}
+                onClick={() => setFilter('all')}>all</button>
+              {presentCategories.map(cat => (
+                <button key={cat.id}
+                  className={`filter-chip ${filter === cat.id ? 'active' : ''}`}
+                  onClick={() => setFilter(filter === cat.id ? 'all' : cat.id)}>
+                  <span className="filter-dot" style={{ background: cat.color }} />
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          )
         )}
 
         <button className="today-btn" onClick={handleJumpToToday}>
