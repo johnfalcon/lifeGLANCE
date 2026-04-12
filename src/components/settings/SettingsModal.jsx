@@ -2,8 +2,7 @@ import React, { useRef, useState } from 'react'
 import { saveCategories } from '../../utils/colors'
 import { isMuted, setMuted } from '../../utils/audio'
 
-const TEXT_SIZES_ALL     = ['small', 'normal', 'big', 'bigger']
-const TEXT_SIZES_COMPACT = ['small', 'normal']
+const TEXT_SIZES_ALL = ['small', 'normal', 'big', 'bigger']
 
 const COLOR_PALETTE = [
   '#9370DB', '#A78BFA', '#6366F1', '#3D3580',
@@ -66,15 +65,16 @@ export default function SettingsModal({
         {/* ── Text size ─────────────────────────────────────────────────── */}
         <div className="settings-section">
           <div className="settings-label">text size</div>
-          <div className="zoom-tabs">
-            {(ultraCompact ? TEXT_SIZES_COMPACT : TEXT_SIZES_ALL).map(s => (
-              <button key={s}
-                className={`zoom-tab ${textSize === s ? 'active' : ''}`}
-                onClick={() => onTextSizeChange(s)}>{s}</button>
-            ))}
-          </div>
-          {ultraCompact && (
-            <div className="settings-note">big / bigger unavailable on short screens</div>
+          {ultraCompact ? (
+            <div className="settings-note">text size adjustment unavailable on short screens</div>
+          ) : (
+            <div className="zoom-tabs">
+              {TEXT_SIZES_ALL.map(s => (
+                <button key={s}
+                  className={`zoom-tab ${textSize === s ? 'active' : ''}`}
+                  onClick={() => onTextSizeChange(s)}>{s}</button>
+              ))}
+            </div>
           )}
         </div>
 

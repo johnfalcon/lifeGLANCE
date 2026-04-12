@@ -31,9 +31,15 @@ export default function TimelineView({ milestones, setMilestones }) {
   const [addOpen,       setAddOpen]       = useState(false)
   const [editTarget,    setEditTarget]    = useState(null)
   const [detail,        setDetail]        = useState(null)
-  const [textSize,      setTextSize]      = useState(
-    () => localStorage.getItem('lifeglance-text-size') || 'normal'
-  )
+  const [textSize,      setTextSize]      = useState(() => {
+    const stored = localStorage.getItem('lifeglance-text-size')
+    if (stored) return stored
+    // First-visit default: estimate available SVG height (total minus fixed chrome)
+    const hEst = window.innerHeight - 141
+    if (hEst < 240) return 'small'
+    if (hEst < 640) return 'normal'
+    return 'big'
+  })
   const [customYears,   setCustomYears]   = useState(15)
   const [pastIdx,       setPastIdx]       = useState(0)
   const [futureIdx,     setFutureIdx]     = useState(0)
