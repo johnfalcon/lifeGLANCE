@@ -790,11 +790,9 @@ export default function TimelineView({ milestones, setMilestones }) {
               viewMode={viewMode}
             />
           )}
-          {compactStats && (
-            <button
-              className={`minimap-grip${minimapOpen ? ' minimap-grip-open' : ''}`}
-              onClick={() => setMinimapOpen(o => !o)}>
-              {minimapOpen ? '▴ map' : '▾ map'}
+          {compactStats && !minimapOpen && (
+            <button className="minimap-grip" onClick={() => setMinimapOpen(true)}>
+              ▾ map
             </button>
           )}
         </>
