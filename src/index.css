@@ -223,6 +223,9 @@ button, input, select, textarea {
   position: relative;
 }
 
+/* No preview strip on step 1 — use symmetrical padding so content is truly centred */
+.onboarding-welcome { padding-bottom: 2rem; }
+
 .onboarding-step {
   width: 100%;
   max-width: 580px;

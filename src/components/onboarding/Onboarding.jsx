@@ -38,7 +38,7 @@ export default function Onboarding({ onComplete }) {
   const previewMilestones = [pastMilestone, futureMilestone].filter(Boolean)
 
   return (
-    <div className="onboarding">
+    <div className={`onboarding${step === 1 ? ' onboarding-welcome' : ''}`}>
       {step === 1 && <Step1Welcome onBegin={handleBegin} onSkip={finish} />}
       {step === 2 && <Step2Past    onSubmit={handlePast}    onSkip={finish} />}
       {step === 3 && <Step3Future  onSubmit={handleFuture}  onSkip={finish} pastMilestone={pastMilestone} />}
