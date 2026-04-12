@@ -452,19 +452,12 @@ const Timeline = forwardRef(function Timeline(
                   if (type === 'recurrence') return (
                     <g key="recurrence" transform={`translate(${ix},${iy})`} opacity={op}>
                       <rect x={-2} y={-1} width={18} height={13} fill="transparent" />
-                      {/* top arc */}
-                      <path d="M 2,5.5 C 2,1 11,1 11,5.5"
-                        fill="none" stroke={m.color} strokeWidth={0.85} strokeLinecap="round" />
-                      {/* top arrowhead */}
-                      <polyline points="9,3 11,5.5 8.5,6.5"
-                        fill="none" stroke={m.color} strokeWidth={0.85}
-                        strokeLinecap="round" strokeLinejoin="round" />
-                      {/* bottom arc */}
-                      <path d="M 11,6.5 C 11,11 2,11 2,6.5"
-                        fill="none" stroke={m.color} strokeWidth={0.85} strokeLinecap="round" />
-                      {/* bottom arrowhead */}
-                      <polyline points="3.5,8.5 2,6.5 4.5,5.5"
-                        fill="none" stroke={m.color} strokeWidth={0.85}
+                      {/* 270° clockwise arc: start top, sweep around, end left */}
+                      <path d="M 6.5,1.5 A 4.5,4.5 0 1,1 2,6"
+                        fill="none" stroke={m.color} strokeWidth={0.9} strokeLinecap="round" />
+                      {/* arrowhead pointing down-left at arc end */}
+                      <polyline points="0.5,4.5 2,6 3.5,4.5"
+                        fill="none" stroke={m.color} strokeWidth={0.9}
                         strokeLinecap="round" strokeLinejoin="round" />
                     </g>
                   )
