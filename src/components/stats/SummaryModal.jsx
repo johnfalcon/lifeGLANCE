@@ -15,20 +15,25 @@ export default function SummaryModal({ milestones, onClose }) {
   const stats = useMemo(() => {
     if (!milestones.length) return null
 
-    const today   = new Date()
-    // Exclude recurring duplicates from analytical stats — keep only one per recurrence_id
-    const deduped = milestones.filter((m, _, arr) =>
-      !m.recurrence_id || arr.findIndex(x => x.recurrence_id === m.recurrence_id) === arr.indexOf(m)
-    )
-    const sorted  = [...deduped].sort((a, b) => new Date(a.date) - new Date(b.date))
+    const today = new Date()
+    // Option B: deduplicate recurring series — keep only earliest instance per recurrence_id
+    const seen = new Set()
+    const deduped = [...milestones]
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .filter(m => {
+        if (!m.recurrence_id) return true
+        if (seen.has(m.recurrence_id)) return false
+        seen.add(m.recurrence_id)
+        return true
+      })
+    const sorted = deduped  // already sorted ascending
 
-    const past   = milestones.filter(m => new Date(m.date) < today).length
-    const future = milestones.filter(m => new Date(m.date) >= today).length
+    const past   = deduped.filter(m => new Date(m.date) < today).length
+    const future = deduped.filter(m => new Date(m.date) >= today).length
 
-    // Span from earliest to latest (including recurring)
-    const allSorted = [...milestones].sort((a, b) => new Date(a.date) - new Date(b.date))
-    const spanMs = allSorted.length > 1
-      ? new Date(allSorted.at(-1).date) - new Date(allSorted[0].date)
+    // Span from earliest to latest (deduped)
+    const spanMs = deduped.length > 1
+      ? new Date(deduped.at(-1).date) - new Date(deduped[0].date)
       : 0
 
     // Longest gap between consecutive deduplicated milestones
@@ -55,7 +60,7 @@ export default function SummaryModal({ milestones, onClose }) {
     const decades      = Object.entries(byDecade).sort((a, b) => Number(a[0]) - Number(b[0]))
     const maxDecCount  = Math.max(...decades.map(d => d[1]), 1)
 
-    return { total: milestones.length, past, future, spanMs, longestGap, gapA, gapB, busiestEntry, decades, maxDecCount }
+    return { total: deduped.length, past, future, spanMs, longestGap, gapA, gapB, busiestEntry, decades, maxDecCount }
   }, [milestones])
 
   return (
