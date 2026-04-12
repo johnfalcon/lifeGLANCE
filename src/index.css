@@ -1448,6 +1448,7 @@ button, input, select, textarea {
 }
 
 .ics-table-wrap {
+  flex-shrink: 0;             /* prevent flex from crushing the table to zero height */
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow-x: auto;
