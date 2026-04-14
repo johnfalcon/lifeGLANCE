@@ -58,6 +58,8 @@ const Timeline = forwardRef(function Timeline(
     () => window.matchMedia('(max-height: 900px)').matches
   )
   const [photoTip,    setPhotoTip]    = useState(null) // { uri, x, y }
+  const [playingId,   setPlayingId]   = useState(null)
+  const audioElRef = useRef(null)
   // Track which IDs have already played their fly-in so we don't re-animate on re-renders
   const [flyDoneIds,  setFlyDoneIds]  = useState(() => new Set())
   // panMsRef always tracks the latest value for animation calculations
@@ -104,6 +106,24 @@ const Timeline = forwardRef(function Timeline(
     resetPan: () => smoothPanTo(0),
     panToMs:  (targetMs) => smoothPanTo(targetMs - Date.now()),
   }), [smoothPanTo])
+
+  // Audio playback — stop on unmount
+  useEffect(() => {
+    return () => { if (audioElRef.current) { audioElRef.current.pause(); audioElRef.current = null } }
+  }, [])
+
+  function handleAudioClick(m) {
+    if (audioElRef.current) {
+      audioElRef.current.pause()
+      audioElRef.current = null
+      if (playingId === m.id) { setPlayingId(null); return }
+    }
+    const a = new Audio(m.audio_uri)
+    audioElRef.current = a
+    setPlayingId(m.id)
+    a.play().catch(() => {})
+    a.onended = () => { setPlayingId(null); audioElRef.current = null }
+  }
 
   // Measure container
   useEffect(() => {
@@ -414,10 +434,11 @@ const Timeline = forwardRef(function Timeline(
                 ) : null
               })()}
 
-              {/* Card icons — top-right corner: camera, link, recurrence (right → left) */}
+              {/* Card icons — top-right corner: camera, audio, link, recurrence (right → left) */}
               {(() => {
                 const icons = []
                 if (m.photo_uri)  icons.push('camera')
+                if (m.audio_uri)  icons.push('audio')
                 if (m.url)        icons.push('link')
                 if (m.recurrence) icons.push('recurrence')
                 return icons.map((type, i) => {
@@ -441,6 +462,27 @@ const Timeline = forwardRef(function Timeline(
                       <circle cx={11.8} cy={4} r={0.75} fill={m.color} />
                     </g>
                   )
+                  if (type === 'audio') {
+                    const isPlaying = playingId === m.id
+                    return (
+                      <g key="audio" transform={`translate(${ix},${iy})`}
+                         opacity={isPlaying ? 1 : op} style={{ cursor: 'pointer' }}
+                         onClick={e => { e.stopPropagation(); handleAudioClick(m) }}>
+                        <rect x={-2} y={-1} width={18} height={13} fill="transparent" />
+                        {/* Speaker body */}
+                        <rect x={0.5} y={3.5} width={3.5} height={4} rx={0.4}
+                          fill={isPlaying ? m.color : 'none'} stroke={m.color} strokeWidth={0.85} />
+                        {/* Cone */}
+                        <path d="M4,2 L7.5,0.5 L7.5,10.5 L4,9 Z"
+                          fill={isPlaying ? m.color : 'none'} stroke={m.color} strokeWidth={0.85} strokeLinejoin="round" />
+                        {/* Sound waves */}
+                        <path d="M9,4 Q10.5,5.5 9,7"
+                          fill="none" stroke={m.color} strokeWidth={0.85} strokeLinecap="round" />
+                        <path d="M10.5,2.5 Q13,5.5 10.5,8.5"
+                          fill="none" stroke={m.color} strokeWidth={0.85} strokeLinecap="round" />
+                      </g>
+                    )
+                  }
                   if (type === 'link') return (
                     <g key="link" transform={`translate(${ix},${iy})`}
                        opacity={op} style={{ cursor: 'pointer' }}

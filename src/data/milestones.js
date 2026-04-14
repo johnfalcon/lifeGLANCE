@@ -13,6 +13,7 @@ export function buildMilestone({
   color,
   note           = '',
   photo_uri      = '',
+  audio_uri      = '',
   url            = '',
   recurrence     = null,   // null | 'annual'
   recurrence_id  = null,   // UUID shared across instances of a series
@@ -31,6 +32,7 @@ export function buildMilestone({
     color:          color || categoryColor(category),
     note,
     photo_uri,
+    audio_uri,
     url,
     recurrence,
     recurrence_id,

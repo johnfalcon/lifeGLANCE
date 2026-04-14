@@ -561,9 +561,10 @@ export default function TimelineView({ milestones, setMilestones }) {
           ...data,
           date:          d,
           recurrence_id: rid,
-          // only the base-year instance keeps the original note / photo / url
+          // only the base-year instance keeps the original note / photo / audio / url
           note:      y === baseYear ? data.note      : '',
           photo_uri: y === baseYear ? data.photo_uri : '',
+          audio_uri: y === baseYear ? data.audio_uri : '',
           url:       y === baseYear ? data.url       : '',
         })
         created.push(m)

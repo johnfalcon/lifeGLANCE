@@ -21,10 +21,12 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
   const [note,       setNote]       = useState(existing?.note       ?? '')
   const [url,        setUrl]        = useState(existing?.url        ?? '')
   const [photoUri,   setPhotoUri]   = useState(existing?.photo_uri  ?? '')
+  const [audioUri,   setAudioUri]   = useState(existing?.audio_uri  ?? '')
   const [recurrence, setRecurrence] = useState(false)
   const [recEndYear, setRecEndYear] = useState('')
   const [busy,       setBusy]       = useState(false)
   const photoRef = useRef(null)
+  const audioRef = useRef(null)
 
   // Pre-fill date from existing
   React.useEffect(() => {
@@ -66,6 +68,7 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
         color: selectedCat?.color,
         note: note.trim(),
         photo_uri: photoUri,
+        audio_uri: audioUri,
         url: url.trim(),
         recurrence: (!isEdit && recurrence) ? 'annual' : (existing?.recurrence ?? null),
         recurrence_id: existing?.recurrence_id ?? null,
@@ -235,6 +238,37 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
               if (!file) return
               const reader = new FileReader()
               reader.onload = () => setPhotoUri(reader.result)
+              reader.readAsDataURL(file)
+            }}
+          />
+        </div>
+
+        {/* Audio */}
+        <div className="sheet-field">
+          <label className="field-label">audio (optional)</label>
+          {audioUri ? (
+            <div className="audio-preview-wrap">
+              <audio controls src={audioUri} className="audio-preview" />
+              <button type="button" className="photo-remove"
+                onClick={() => { setAudioUri(''); if (audioRef.current) audioRef.current.value = '' }}>
+                remove
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn"
+              style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem', alignSelf: 'flex-start' }}
+              onClick={() => audioRef.current?.click()}>
+              attach audio
+            </button>
+          )}
+          <input
+            ref={audioRef} type="file" accept="audio/*"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const file = e.target.files[0]
+              if (!file) return
+              const reader = new FileReader()
+              reader.onload = () => setAudioUri(reader.result)
               reader.readAsDataURL(file)
             }}
           />

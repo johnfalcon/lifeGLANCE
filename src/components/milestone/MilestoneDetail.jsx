@@ -62,6 +62,13 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
         )}
 
 
+        {/* Audio */}
+        {m.audio_uri && (
+          <div className="detail-audio-wrap">
+            <audio controls src={m.audio_uri} className="detail-audio" />
+          </div>
+        )}
+
         {/* Note */}
         {m.note && (
           <div className="detail-note">{m.note}</div>

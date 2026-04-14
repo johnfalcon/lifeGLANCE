@@ -968,6 +968,28 @@ button, input, select, textarea {
 }
 .photo-remove:hover { color: var(--text); }
 
+/* ─── Audio field in add/edit sheet ───────────────────────────────────────── */
+.audio-preview-wrap {
+  position: relative;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.audio-preview {
+  width: 100%;
+  accent-color: var(--amber);
+}
+
+/* ─── Audio player in detail sheet ────────────────────────────────────────── */
+.detail-audio-wrap {
+  margin: 0.2rem 0;
+}
+.detail-audio {
+  width: 100%;
+  accent-color: var(--amber);
+}
+
 .detail-title {
   font-size: 1.4rem;
   font-weight: 700;
