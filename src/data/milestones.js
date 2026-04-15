@@ -13,7 +13,7 @@ export function buildMilestone({
   color,
   note           = '',
   photo_uri      = '',
-  has_audio      = false,
+  media_type     = null,   // null | 'audio' | 'video'
   url            = '',
   recurrence     = null,   // null | 'annual'
   recurrence_id  = null,   // UUID shared across instances of a series
@@ -32,7 +32,7 @@ export function buildMilestone({
     color:          color || categoryColor(category),
     note,
     photo_uri,
-    has_audio,
+    media_type,
     url,
     recurrence,
     recurrence_id,
@@ -78,12 +78,12 @@ export async function deleteMilestone(id) {
 
 // Clear all milestones and replace with the supplied array (preserves original IDs).
 // Also wipes all media blobs — they are never included in JSON backups, so any
-// has_audio flags on restored items are reset to false to stay consistent.
+// media_type flags on restored items are reset to null to stay consistent.
 export async function restoreMilestones(items) {
   const existing = await dbGetAll()
   for (const m of existing) await dbDelete(m.id)
   await dbClearAllMedia()
-  const clean = items.map(m => ({ ...m, has_audio: false }))
+  const clean = items.map(m => ({ ...m, media_type: null }))
   for (const m of clean) await dbPut(m)
   return clean
 }

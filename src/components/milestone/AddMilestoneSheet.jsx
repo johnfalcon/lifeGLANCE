@@ -21,19 +21,19 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
   const [note,       setNote]       = useState(existing?.note       ?? '')
   const [url,        setUrl]        = useState(existing?.url        ?? '')
   const [photoUri,      setPhotoUri]      = useState(existing?.photo_uri ?? '')
-  const [audioFile,     setAudioFile]     = useState(null)   // new File selected this session
-  const [audioRemoved,  setAudioRemoved]  = useState(false)  // user cleared existing audio
-  const [audioObjectUrl, setAudioObjectUrl] = useState(null) // transient preview URL
+  const [mediaFile,     setMediaFile]     = useState(null)   // new File selected this session
+  const [mediaRemoved,  setMediaRemoved]  = useState(false)  // user cleared existing media
+  const [mediaObjectUrl, setMediaObjectUrl] = useState(null) // transient preview URL
   const [recurrence,    setRecurrence]    = useState(false)
   const [recEndYear,    setRecEndYear]    = useState('')
   const [busy,          setBusy]          = useState(false)
   const photoRef = useRef(null)
-  const audioRef = useRef(null)
+  const mediaRef = useRef(null)
 
   // Revoke preview URL when it changes or the form unmounts
   React.useEffect(() => {
-    return () => { if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl) }
-  }, [audioObjectUrl])
+    return () => { if (mediaObjectUrl) URL.revokeObjectURL(mediaObjectUrl) }
+  }, [mediaObjectUrl])
 
   // Pre-fill date from existing
   React.useEffect(() => {
@@ -75,8 +75,8 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
         color: selectedCat?.color,
         note: note.trim(),
         photo_uri: photoUri,
-        audioFile,
-        audioRemoved,
+        mediaFile,
+        mediaRemoved,
         url: url.trim(),
         recurrence: (!isEdit && recurrence) ? 'annual' : (existing?.recurrence ?? null),
         recurrence_id: existing?.recurrence_id ?? null,
@@ -251,52 +251,56 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
           />
         </div>
 
-        {/* Audio */}
+        {/* Media (audio / video) */}
         <div className="sheet-field">
-          <label className="field-label">audio (optional)</label>
-          {audioFile && audioObjectUrl ? (
+          <label className="field-label">audio / video (optional)</label>
+          {mediaFile && mediaObjectUrl ? (
             // New file selected this session — show inline preview
-            <div className="audio-preview-wrap">
-              <audio controls src={audioObjectUrl} className="audio-preview" />
+            <div className="media-preview-wrap">
+              {mediaFile.type.startsWith('video/')
+                ? <video controls src={mediaObjectUrl} className="media-preview" />
+                : <audio controls src={mediaObjectUrl} className="media-preview" />}
               <button type="button" className="btn-ghost" style={{ alignSelf: 'flex-start', fontSize: '0.72rem' }}
                 onClick={() => {
-                  setAudioFile(null)
-                  setAudioRemoved(true)
-                  setAudioObjectUrl(null)
-                  if (audioRef.current) audioRef.current.value = ''
+                  setMediaFile(null)
+                  setMediaRemoved(true)
+                  setMediaObjectUrl(null)
+                  if (mediaRef.current) mediaRef.current.value = ''
                 }}>
                 remove
               </button>
             </div>
-          ) : existing?.has_audio && !audioRemoved ? (
-            // Existing audio — can't preview without fetching the blob; show indicator
+          ) : existing?.media_type && !mediaRemoved ? (
+            // Existing media — show indicator with replace/remove
             <div className="audio-attached-row">
-              <span className="audio-attached-label">♪ audio attached</span>
+              <span className="audio-attached-label">
+                {existing.media_type === 'video' ? '▶ video attached' : '♪ audio attached'}
+              </span>
               <button type="button" className="btn-ghost" style={{ fontSize: '0.72rem' }}
-                onClick={() => audioRef.current?.click()}>
+                onClick={() => mediaRef.current?.click()}>
                 replace
               </button>
               <button type="button" className="btn-ghost" style={{ fontSize: '0.72rem' }}
-                onClick={() => { setAudioRemoved(true); setAudioFile(null) }}>
+                onClick={() => { setMediaRemoved(true); setMediaFile(null) }}>
                 remove
               </button>
             </div>
           ) : (
             <button type="button" className="btn"
               style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem', alignSelf: 'flex-start' }}
-              onClick={() => audioRef.current?.click()}>
-              attach audio
+              onClick={() => mediaRef.current?.click()}>
+              attach audio / video
             </button>
           )}
           <input
-            ref={audioRef} type="file" accept="audio/*"
+            ref={mediaRef} type="file" accept="audio/*,video/*"
             style={{ display: 'none' }}
             onChange={e => {
               const file = e.target.files[0]
               if (!file) return
-              setAudioFile(file)
-              setAudioRemoved(false)
-              setAudioObjectUrl(URL.createObjectURL(file))
+              setMediaFile(file)
+              setMediaRemoved(false)
+              setMediaObjectUrl(URL.createObjectURL(file))
             }}
           />
         </div>

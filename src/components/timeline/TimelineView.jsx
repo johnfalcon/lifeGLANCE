@@ -540,16 +540,19 @@ export default function TimelineView({ milestones, setMilestones }) {
   async function handleSave(data, existing) {
     audio.init()   // ensure AudioContext is running (form submit = user gesture)
 
-    // audioFile / audioRemoved are transfer-only fields from the form — strip them
+    // mediaFile / mediaRemoved are transfer-only fields from the form — strip them
     // before passing to the data layer, and handle blob persistence here.
-    const { audioFile, audioRemoved, ...milestoneData } = data
+    const { mediaFile, mediaRemoved, ...milestoneData } = data
+    const newMediaType = mediaFile
+      ? (mediaFile.type.startsWith('video/') ? 'video' : 'audio')
+      : null
 
     if (existing) {
-      const hasAudio = audioFile     ? true
-                     : audioRemoved  ? false
-                     : (existing.has_audio ?? false)
-      const updated = await updateMilestone(existing.id, { ...milestoneData, has_audio: hasAudio }, existing)
-      if (audioFile) await dbPutMedia(updated.id, audioFile)
+      const mediaType = mediaFile    ? newMediaType
+                      : mediaRemoved ? null
+                      : (existing.media_type ?? null)
+      const updated = await updateMilestone(existing.id, { ...milestoneData, media_type: mediaType }, existing)
+      if (mediaFile) await dbPutMedia(updated.id, mediaFile, mediaFile.type)
       const newMs = milestones.map(m => m.id === existing.id ? updated : m)
       pushHistory(newMs)
       setMilestones(newMs)
@@ -571,13 +574,13 @@ export default function TimelineView({ milestones, setMilestones }) {
           ...milestoneData,
           date:          d,
           recurrence_id: rid,
-          // only the base-year instance keeps the original note / photo / audio / url
-          note:      y === baseYear ? milestoneData.note      : '',
-          photo_uri: y === baseYear ? milestoneData.photo_uri : '',
-          has_audio: y === baseYear ? !!audioFile             : false,
-          url:       y === baseYear ? milestoneData.url       : '',
+          // only the base-year instance keeps the original note / photo / media / url
+          note:       y === baseYear ? milestoneData.note      : '',
+          photo_uri:  y === baseYear ? milestoneData.photo_uri : '',
+          media_type: y === baseYear ? newMediaType            : null,
+          url:        y === baseYear ? milestoneData.url       : '',
         })
-        if (y === baseYear && audioFile) await dbPutMedia(m.id, audioFile)
+        if (y === baseYear && mediaFile) await dbPutMedia(m.id, mediaFile, mediaFile.type)
         created.push(m)
       }
       const newMs = [...milestones, ...created]
@@ -586,8 +589,8 @@ export default function TimelineView({ milestones, setMilestones }) {
       setNewlyAddedId(created[0].id)
       audio.playChime()
     } else {
-      const m = await addMilestone({ ...milestoneData, has_audio: !!audioFile })
-      if (audioFile) await dbPutMedia(m.id, audioFile)
+      const m = await addMilestone({ ...milestoneData, media_type: newMediaType })
+      if (mediaFile) await dbPutMedia(m.id, mediaFile, mediaFile.type)
       const newMs = [...milestones, m]
       pushHistory(newMs)
       setMilestones(newMs)

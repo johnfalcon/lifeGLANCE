@@ -968,16 +968,17 @@ button, input, select, textarea {
 }
 .photo-remove:hover { color: var(--text); }
 
-/* ─── Audio field in add/edit sheet ───────────────────────────────────────── */
-.audio-preview-wrap {
+/* ─── Media field (audio / video) in add/edit sheet ───────────────────────── */
+.media-preview-wrap {
   align-self: stretch;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
-.audio-preview {
+.media-preview {
   width: 100%;
   accent-color: var(--amber);
+  max-height: 220px;
 }
 .audio-attached-row {
   display: flex;
@@ -990,12 +991,19 @@ button, input, select, textarea {
   font-style: italic;
 }
 
-/* ─── Audio player in detail sheet ────────────────────────────────────────── */
+/* ─── Media player in detail sheet ────────────────────────────────────────── */
 .detail-audio-wrap {
   margin: 0.2rem 0;
 }
 .detail-audio {
   width: 100%;
+  accent-color: var(--amber);
+}
+.detail-video {
+  width: 100%;
+  max-height: 280px;
+  display: block;
+  border-radius: 3px;
   accent-color: var(--amber);
 }
 

@@ -87,19 +87,22 @@ export function dbDelete(id) {
 
 // ── Media (audio blobs) ──────────────────────────────────────────────────────
 
-export function dbPutMedia(id, blob) {
+export function dbPutMedia(id, blob, mimeType) {
   return new Promise((resolve, reject) => {
-    const req = mediaTx('readwrite').put({ id, blob })
+    const req = mediaTx('readwrite').put({ id, blob, mimeType })
     req.onsuccess = () => resolve()
     req.onerror   = () => reject(req.error)
   })
 }
 
-// Returns the Blob, or null if no entry exists for that id.
+// Returns { blob, mimeType } or null if no entry exists for that id.
 export function dbGetMedia(id) {
   return new Promise((resolve, reject) => {
     const req = mediaTx().get(id)
-    req.onsuccess = () => resolve(req.result?.blob ?? null)
+    req.onsuccess = () => {
+      const rec = req.result
+      resolve(rec ? { blob: rec.blob, mimeType: rec.mimeType } : null)
+    }
     req.onerror   = () => reject(req.error)
   })
 }

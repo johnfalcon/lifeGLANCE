@@ -6,15 +6,15 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
   const [audioUrl, setAudioUrl] = useState(null)
 
   useEffect(() => {
-    if (!m.has_audio) return
+    if (!m.media_type) return
     let objectUrl
-    dbGetMedia(m.id).then(blob => {
-      if (!blob) return
-      objectUrl = URL.createObjectURL(blob)
+    dbGetMedia(m.id).then(result => {
+      if (!result) return
+      objectUrl = URL.createObjectURL(result.blob)
       setAudioUrl(objectUrl)
     })
     return () => { if (objectUrl) URL.revokeObjectURL(objectUrl) }
-  }, [m.id, m.has_audio])
+  }, [m.id, m.media_type])
   function handleDelete() {
     if (window.confirm(`Delete "${m.title}"?`)) {
       onDelete(m.id)
@@ -75,10 +75,12 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
         )}
 
 
-        {/* Audio */}
+        {/* Media (audio / video) */}
         {audioUrl && (
           <div className="detail-audio-wrap">
-            <audio controls src={audioUrl} className="detail-audio" />
+            {m.media_type === 'video'
+              ? <video controls src={audioUrl} className="detail-video" />
+              : <audio controls src={audioUrl} className="detail-audio" />}
           </div>
         )}
 

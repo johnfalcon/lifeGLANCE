@@ -128,9 +128,9 @@ const Timeline = forwardRef(function Timeline(
       if (playingId === m.id) { setPlayingId(null); return }
     }
     // Fetch blob lazily and play via a transient object URL
-    dbGetMedia(m.id).then(blob => {
-      if (!blob) return
-      const url = URL.createObjectURL(blob)
+    dbGetMedia(m.id).then(result => {
+      if (!result) return
+      const url = URL.createObjectURL(result.blob)
       const a = new Audio(url)
       a._objectUrl = url
       audioElRef.current = a
@@ -457,7 +457,8 @@ const Timeline = forwardRef(function Timeline(
               {(() => {
                 const icons = []
                 if (m.photo_uri)  icons.push('camera')
-                if (m.has_audio)  icons.push('audio')
+                if (m.media_type === 'audio') icons.push('audio')
+                if (m.media_type === 'video') icons.push('video')
                 if (m.url)        icons.push('link')
                 if (m.recurrence) icons.push('recurrence')
                 return icons.map((type, i) => {
@@ -502,6 +503,22 @@ const Timeline = forwardRef(function Timeline(
                       </g>
                     )
                   }
+                  if (type === 'video') return (
+                    <g key="video" transform={`translate(${ix},${iy})`}
+                       opacity={op} style={{ cursor: 'pointer' }}
+                       onClick={e => { e.stopPropagation(); onMilestoneClick(m) }}>
+                      <rect x={-2} y={-1} width={18} height={13} fill="transparent" />
+                      {/* Video camera body */}
+                      <rect x={0} y={2.5} width={8.5} height={6} rx={1.2}
+                        fill="none" stroke={m.color} strokeWidth={0.85} />
+                      {/* Viewfinder lens hint */}
+                      <circle cx={4.25} cy={5.5} r={1.8}
+                        fill="none" stroke={m.color} strokeWidth={0.75} />
+                      {/* Camera triangle (recording head) */}
+                      <path d="M8.5,4 L13,2.5 L13,8.5 L8.5,7 Z"
+                        fill="none" stroke={m.color} strokeWidth={0.85} strokeLinejoin="round" />
+                    </g>
+                  )
                   if (type === 'link') return (
                     <g key="link" transform={`translate(${ix},${iy})`}
                        opacity={op} style={{ cursor: 'pointer' }}
