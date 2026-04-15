@@ -2,7 +2,16 @@
 
 **Your life, at a glance.** A zoomable personal timeline for milestones — past and future.
 
-lifeGLANCE is a privacy-first progressive web app that runs entirely in the browser. There is no account, no server, no sync — your data never leaves your device.
+Built for people who want to map their life without handing their data to a cloud service. lifeGLANCE is a privacy-first progressive web app that runs entirely in the browser. There is no account, no server, no sync — your data never leaves your device.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-2.4.12-brightgreen.svg)](../../releases)
+
+---
+
+## Install
+
+Download the latest APK from [GitHub Releases](../../releases) and install via [Obtainium](https://github.com/ImranR98/Obtainium), or self-host with Docker (see below).
 
 ---
 
@@ -79,13 +88,15 @@ All data is stored locally in your browser using IndexedDB. Nothing is sent to a
 
 Media blobs are fetched lazily — only when you open a milestone detail or click play — so startup time stays fast regardless of how many attachments you have.
 
-**Backup:** use *Settings → save backup* to export a JSON file of your milestone records. Audio and video attachments are not included in the JSON backup; re-attach them after restoring if needed.
+**Backup:** use *Settings → save backup* to export a JSON file of your milestone records. **Audio and video attachments are not included in the JSON backup — re-attach them after restoring if needed.**
 
 **Storage limits** vary by browser. Chrome and Firefox allow multiple GB. Safari on iOS is more restrictive and may evict data for origins not visited for 7+ days unless the app is installed to the home screen. The current usage and available quota are shown in the Help modal (`?`).
 
 ---
 
 ## Running locally
+
+Requires Node 20+.
 
 ```bash
 npm install
