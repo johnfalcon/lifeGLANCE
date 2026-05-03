@@ -81,6 +81,7 @@ export default function TimelineView({ milestones, setMilestones }) {
   )
   const [canUndo,       setCanUndo]       = useState(false)
   const [canRedo,       setCanRedo]       = useState(false)
+  const [eras,          setEras]          = useState([])
   const [newlyAddedId,  setNewlyAddedId]  = useState(null)
   const [summaryOpen,   setSummaryOpen]   = useState(false)
   const [onThisDayOpen, setOnThisDayOpen] = useState(false)
@@ -143,6 +144,10 @@ export default function TimelineView({ milestones, setMilestones }) {
     const handler = (e) => setUltraCompact(e.matches)
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  useEffect(() => {
+    listEras().then(setEras).catch(console.error)
   }, [])
 
 
@@ -1026,6 +1031,7 @@ export default function TimelineView({ milestones, setMilestones }) {
           <Timeline
             ref={timelineRef}
             milestones={filteredMilestones}
+            eras={eras}
             zoom={zoom}
             textSize={textSize}
             customHalfMs={customHalfMs}

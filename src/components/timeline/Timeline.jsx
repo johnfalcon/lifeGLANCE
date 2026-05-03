@@ -9,6 +9,35 @@ import { dbGetMedia } from '../../data/db'
 // Map text-size labels → root px value (must match TimelineView TEXT_SIZES)
 const REM_PX = { small: 19, normal: 22, big: 26, bigger: 30 }
 
+// ── Era helpers ──────────────────────────────────────────────────────────────
+
+// Greedy interval-graph colouring: assigns each era the lowest row index that
+// doesn't conflict with an already-placed era in the same row.
+function assignEraRows(eras) {
+  const sorted = [...eras].sort((a, b) => new Date(a.start) - new Date(b.start))
+  const rowEnds = [] // rowEnds[i] = end-time of the last era placed in row i
+  return sorted.map(era => {
+    const s = new Date(era.start).getTime()
+    const e = new Date(era.end).getTime()
+    let row = rowEnds.findIndex(end => end <= s)
+    if (row === -1) { row = rowEnds.length; rowEnds.push(e) }
+    else rowEnds[row] = e
+    return { ...era, _row: row }
+  })
+}
+
+// Human-readable duration string, e.g. "4y 2mo" or "8mo".
+function eraSpan(startIso, endIso) {
+  const s = new Date(startIso), e = new Date(endIso)
+  const totalMonths = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth())
+  const yrs = Math.floor(totalMonths / 12)
+  const mos = totalMonths % 12
+  if (yrs > 0 && mos > 0) return `${yrs}y ${mos}mo`
+  if (yrs > 0)             return `${yrs}y`
+  if (mos > 0)             return `${mos}mo`
+  return '< 1mo'
+}
+
 // Word-wrap title to at most 2 lines given a max-chars-per-line limit.
 // Courier Prime is monospace so char-count is a reliable width proxy.
 function wrapTitle(text, maxChars) {
@@ -35,7 +64,7 @@ function wrapTitle(text, maxChars) {
 }
 
 const Timeline = forwardRef(function Timeline(
-  { milestones, zoom, textSize = 'normal', onMilestoneClick, onMilestoneDoubleClick, customHalfMs = 0, highlightedIds, panMs, onPanMs, viewMode = 'all', onClusterClick, clustering = true, birthday = '', newlyAddedId = null, ultraCompact = false },
+  { milestones, eras = [], zoom, textSize = 'normal', onMilestoneClick, onMilestoneDoubleClick, customHalfMs = 0, highlightedIds, panMs, onPanMs, viewMode = 'all', onClusterClick, clustering = true, birthday = '', newlyAddedId = null, ultraCompact = false },
   ref
 ) {
   const remPx = REM_PX[textSize] || 22
@@ -59,6 +88,7 @@ const Timeline = forwardRef(function Timeline(
     () => window.matchMedia('(max-height: 900px)').matches
   )
   const [photoTip,    setPhotoTip]    = useState(null) // { uri, x, y }
+  const [eraTip,      setEraTip]      = useState(null) // { era, x, y } | null
   const [playingId,   setPlayingId]   = useState(null)
   const audioElRef = useRef(null)
   // Track which IDs have already played their fly-in so we don't re-animate on re-renders
@@ -163,6 +193,30 @@ const Timeline = forwardRef(function Timeline(
   const axisY = compactLayout
     ? Math.max(193, h - 40)
     : Math.round(h * 0.50)
+
+  // ── Era band: sits between milestones and the time axis ──────────────────
+  // ERA_ROW_H scales with text size so the band feels proportional.
+  const ERA_ROW_H    = Math.round(remPx * 0.62)  // ~14px at normal (22px rem)
+  const ERA_ROW_GAP  = 2                           // px gap between stacked rows
+  const ERA_BAND_PAD = 4                           // top + bottom padding inside band
+
+  const erasWithRows = assignEraRows(eras)
+  const numEraRows   = erasWithRows.length > 0
+    ? Math.max(...erasWithRows.map(e => e._row)) + 1 : 0
+  const erasBandH    = numEraRows > 0
+    ? ERA_BAND_PAD + numEraRows * ERA_ROW_H + (numEraRows - 1) * ERA_ROW_GAP + ERA_BAND_PAD
+    : 0
+
+  // Milestones (above-axis) connect to msAxisY; the era band fills [msAxisY, axisY].
+  // Below-axis (future) milestones still connect to axisY directly.
+  const msAxisY = axisY - erasBandH
+
+  // Min bar width (px) before the era title is shown inside the bar.
+  const ERA_LABEL_MIN_PX = 55
+  // Min bar width (px) before start/end year markers appear at the bar edges (deep zoom).
+  const ERA_DATES_MIN_PX = 200
+  // ─────────────────────────────────────────────────────────────────────────
+
   const today    = new Date()
   const centerMs = today.getTime() + panMs
   const { startMs, endMs } = getTimeRangeForView(zoom, centerMs, viewMode, customHalfMs)
@@ -173,7 +227,7 @@ const Timeline = forwardRef(function Timeline(
   // cluster milestones more aggressively to reduce card pile-up near today.
   const TOP_RESERVE        = compactLayout ? 120 : 16
   const CLUSTER_THRESHOLD  = CARD_W * (compactLayout ? 0.6 : 0.4)
-  const maxLane  = Math.max(0, Math.floor((axisY - MAX_CONN - CARD_H2 - TOP_RESERVE) / CARD_STEP))
+  const maxLane  = Math.max(0, Math.floor((msAxisY - MAX_CONN - CARD_H2 - TOP_RESERVE) / CARD_STEP))
 
   const sorted = [...milestones].sort((a, b) => new Date(a.date) - new Date(b.date))
   const groups = []
@@ -273,6 +327,103 @@ const Timeline = forwardRef(function Timeline(
         <line x1={0} y1={axisY} x2={w} y2={axisY}
           stroke="rgba(232,224,208,0.18)" strokeWidth={1} />
 
+        {/* ── Era ribbon band ─────────────────────────────────────────────── */}
+        {erasBandH > 0 && (
+          <g>
+            {/* Subtle band background to give the band visual definition */}
+            <rect x={0} y={msAxisY} width={w} height={erasBandH}
+              fill="rgba(232,224,208,0.016)" />
+            {/* Top separator: visual boundary between milestone cards and band */}
+            <line x1={0} y1={msAxisY} x2={w} y2={msAxisY}
+              stroke="rgba(232,224,208,0.08)" strokeWidth={1} />
+
+            {erasWithRows.map(era => {
+              const eraStartX = dateToX(new Date(era.start).getTime(), startMs, endMs, w)
+              const eraEndX   = dateToX(new Date(era.end).getTime(),   startMs, endMs, w)
+
+              // Skip eras that are entirely off-screen
+              if (eraEndX < -10 || eraStartX > w + 10) return null
+
+              // Clamp visible portion to viewport
+              const x1   = Math.max(0, eraStartX)
+              const x2   = Math.min(w, eraEndX)
+              const barW = x2 - x1
+              if (barW < 1) return null
+
+              const barY = msAxisY + ERA_BAND_PAD + era._row * (ERA_ROW_H + ERA_ROW_GAP)
+              const barH = ERA_ROW_H
+
+              // Label truncation: Courier Prime is monospace.
+              // At 0.45em, char width ≈ remPx * 0.45 * 0.60 px
+              const labelFontPx  = remPx * 0.45
+              const labelCharW   = labelFontPx * 0.60
+              const labelMaxCh   = Math.floor((barW - 14) / labelCharW)
+              const labelText    = labelMaxCh > 2
+                ? (era.title.length <= labelMaxCh ? era.title : era.title.slice(0, labelMaxCh - 1) + '…')
+                : ''
+
+              const startYear = new Date(era.start).getFullYear()
+              const endYear   = new Date(era.end).getFullYear()
+
+              return (
+                <g key={era.id}
+                  style={{ cursor: 'pointer' }}
+                  onMouseEnter={e => setEraTip({ era, x: e.clientX, y: e.clientY })}
+                  onMouseLeave={() => setEraTip(null)}
+                  onMouseMove={e => setEraTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
+                >
+                  {/* Bar body */}
+                  <rect x={x1} y={barY} width={barW} height={barH}
+                    fill={era.color} fillOpacity={0.18}
+                    stroke={era.color} strokeOpacity={0.32} strokeWidth={0.5}
+                    rx={2} />
+
+                  {/* Left-edge accent stripe — only when the era start is on-screen */}
+                  {eraStartX >= 0 && eraStartX < w && (
+                    <rect x={eraStartX} y={barY} width={2} height={barH}
+                      fill={era.color} opacity={0.85} rx={1} />
+                  )}
+
+                  {/* Title label — shown when bar is wide enough for readable text */}
+                  {barW >= ERA_LABEL_MIN_PX && labelText && (
+                    <text
+                      x={x1 + 6}
+                      y={barY + Math.round(barH * 0.73)}
+                      fill={era.color}
+                      fontSize="0.45em"
+                      fontFamily="'Courier Prime', monospace"
+                      opacity={0.9}
+                    >{labelText}</text>
+                  )}
+
+                  {/* Start/end year markers — shown at deep zoom (bar very wide) */}
+                  {barW >= ERA_DATES_MIN_PX && eraStartX >= 4 && (
+                    <text
+                      x={eraStartX + 4}
+                      y={barY + barH - 2}
+                      fill={era.color}
+                      fontSize="0.38em"
+                      fontFamily="'Courier Prime', monospace"
+                      opacity={0.60}
+                    >{startYear}</text>
+                  )}
+                  {barW >= ERA_DATES_MIN_PX && eraEndX <= w - 4 && (
+                    <text
+                      x={eraEndX - 4}
+                      y={barY + barH - 2}
+                      textAnchor="end"
+                      fill={era.color}
+                      fontSize="0.38em"
+                      fontFamily="'Courier Prime', monospace"
+                      opacity={0.60}
+                    >{endYear}</text>
+                  )}
+                </g>
+              )
+            })}
+          </g>
+        )}
+
         {/* ── Today marker ────────────────────────────────────────────────── */}
         {todayX > -10 && todayX < w + 10 && (() => {
           const tDay     = today.toLocaleDateString('en-US', { weekday: 'long'  }).toLowerCase()
@@ -331,9 +482,9 @@ const Timeline = forwardRef(function Timeline(
 
           let cardY, connY1, connY2
           if (m.above) {
-            cardY  = axisY - connLen - m.lane * CARD_STEP - cardH
+            cardY  = msAxisY - connLen - m.lane * CARD_STEP - cardH
             cardY  = Math.max(84, cardY) // never overlap the today label (goes to ~y=68)
-            connY1 = axisY - 4
+            connY1 = msAxisY - 4
             connY2 = cardY + cardH
           } else {
             cardY  = axisY + connLen + m.lane * CARD_STEP
@@ -368,12 +519,13 @@ const Timeline = forwardRef(function Timeline(
           const todayOnScreen = todayX >= 0 && todayX <= w
           const isFlying = m.id === newlyAddedId && !flyDoneIds.has(m.id) && todayOnScreen
           const flew     = flyDoneIds.has(m.id)
+          const mAxisY = m.above ? msAxisY : axisY
           const innerAnimStyle = flew ? { animation: 'none' } : {
             animation:        isFlying
               ? 'milestone-fly 0.65s cubic-bezier(0.34,1.56,0.64,1) both'
               : 'milestone-appear 0.45s cubic-bezier(0.22,1,0.36,1) both',
             animationDelay:   isFlying ? '0ms' : `${i * 28}ms`,
-            transformOrigin:  isFlying ? `${todayX}px ${axisY}px` : `${x}px ${axisY}px`,
+            transformOrigin:  isFlying ? `${todayX}px ${mAxisY}px` : `${x}px ${mAxisY}px`,
           }
           // Stem fades in sync with the card but without scaling (it stays on the axis)
           const stemAnimStyle = flew ? {} : {
@@ -387,7 +539,7 @@ const Timeline = forwardRef(function Timeline(
             <g key={m.id} onClick={(e) => { if (e.detail >= 2) onMilestoneDoubleClick?.(m); else onMilestoneClick(m) }} opacity={alpha} style={{ cursor: 'pointer' }}>
               {/* Dot and connector: not inside the scale group so they stay on the axis */}
               <g style={stemAnimStyle}>
-                <circle cx={x} cy={axisY}
+                <circle cx={x} cy={m.above ? msAxisY : axisY}
                   r={isHL ? 5.5 : 3.5}
                   fill={m.color}
                   opacity={isHL ? 1 : 0.85} />
@@ -574,16 +726,16 @@ const Timeline = forwardRef(function Timeline(
           const clCenterMs = group.reduce((s, m) => s + new Date(m.date).getTime(), 0) / count
 
           const R      = 11
-          const badgeCy = axisY - R - 10
+          const badgeCy = msAxisY - R - 10
 
           return (
             <g key={`cl-${idx}`} style={{ cursor: 'pointer' }}
                onClick={() => onClusterClick?.(clCenterMs)}>
               {/* Dashed connector */}
-              <line x1={avgX} y1={axisY - 5} x2={avgX} y2={badgeCy + R}
+              <line x1={avgX} y1={msAxisY - 5} x2={avgX} y2={badgeCy + R}
                 stroke="rgba(200,169,110,0.22)" strokeWidth={1} strokeDasharray="2 3" />
               {/* Axis dot */}
-              <circle cx={avgX} cy={axisY} r={5}
+              <circle cx={avgX} cy={msAxisY} r={5}
                 fill="#0D0F16" stroke="rgba(200,169,110,0.55)" strokeWidth={1.2} />
               {/* Badge circle */}
               <circle cx={avgX} cy={badgeCy} r={R}
@@ -635,6 +787,30 @@ const Timeline = forwardRef(function Timeline(
             border: '1px solid rgba(200,169,110,0.35)',
             boxShadow: '0 6px 24px rgba(0,0,0,0.7)',
           }} />
+        </div>
+      )}
+
+      {eraTip && (
+        <div style={{
+          position:      'fixed',
+          left:          eraTip.x,
+          top:           eraTip.y,
+          transform:     'translate(-50%, calc(-100% - 10px))',
+          pointerEvents: 'none',
+          zIndex:        9999,
+          background:    'rgba(13,15,22,0.95)',
+          border:        `1px solid ${eraTip.era.color}55`,
+          borderLeft:    `2px solid ${eraTip.era.color}`,
+          padding:       '5px 9px',
+          fontFamily:    "'Courier Prime', monospace",
+          whiteSpace:    'nowrap',
+        }}>
+          <div style={{ fontSize: '0.65rem', color: eraTip.era.color, fontWeight: 'bold' }}>
+            {eraTip.era.title}
+          </div>
+          <div style={{ fontSize: '0.55rem', color: 'rgba(232,224,208,0.55)', marginTop: 2 }}>
+            {eraSpan(eraTip.era.start, eraTip.era.end)}
+          </div>
         </div>
       )}
     </div>
