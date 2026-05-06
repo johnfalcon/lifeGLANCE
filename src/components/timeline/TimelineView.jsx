@@ -1254,6 +1254,7 @@ export default function TimelineView({ milestones, setMilestones }) {
       {!isEmpty && (
         <MinimapBar
           milestones={filteredMilestones}
+          chapters={chapters}
           panMs={panMs}
           onPanDirect={setPanMs}
           panToMs={(ms) => timelineRef.current?.panToMs(ms)}

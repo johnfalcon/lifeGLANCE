@@ -1840,10 +1840,6 @@ button, input, select, textarea {
 }
 
 /* ─── Responsive ───────────────────────────────────────────────────────────── */
-@media (max-width: 1080px) {
-  .drill-breadcrumb-meta { display: none; }
-}
-
 @media (max-width: 480px) {
   /* Onboarding: reduce gaps and reserved prompt height on portrait phones */
   .onboarding         { padding: 1.5rem 1.25rem 3.5rem; }
@@ -2163,6 +2159,10 @@ button, input, select, textarea {
   transition: color 0.15s;
 }
 .drill-breadcrumb-close:hover { color: var(--text); }
+
+@media (max-width: 1080px) {
+  .drill-breadcrumb-meta { display: none; }
+}
 
 /* Subtle tint: left border on the zoom-wrap pulses the chapter color */
 .timeline-zoom-wrap {
