@@ -27,7 +27,7 @@ export function precomputeEndpoints(chapters) {
 
   for (const chapter of chapters) {
     const startDay = chapter.start.slice(0, 10)
-    const endDay   = chapter.end.slice(0, 10)
+    const endDay   = chapter.end ? chapter.end.slice(0, 10) : null  // null for ongoing chapters
 
     for (const milestoneId of chapter.milestoneIds) {
       // Endpoint status requires both date match AND membership — checked by
@@ -43,7 +43,7 @@ export function precomputeEndpoints(chapters) {
         endpointChapterNames.set(milestoneId, [])
       }
       // Store { chapterTitle, startDay, endDay } so getMilestoneVisibility can
-      // check date match without re-scanning chapters.
+      // check date match without re-scanning chapters. endDay is null for ongoing.
       endpointChapterNames.get(milestoneId).push({ title: chapter.title, startDay, endDay })
     }
   }
@@ -75,9 +75,10 @@ export function getMilestoneVisibility(milestone, chapters, precomputed, context
   const candidateChapters = precomputed.endpointChapterNames.get(milestone.id) ?? []
 
   // Endpoint chapters: member chapters whose start or end date matches this milestone's date.
+  // Ongoing chapters (endDay === null) can only match via their start day.
   const endpointChapters = milestoneDay
     ? candidateChapters
-        .filter(c => c.startDay === milestoneDay || c.endDay === milestoneDay)
+        .filter(c => c.startDay === milestoneDay || (c.endDay && c.endDay === milestoneDay))
         .map(c => c.title)
     : []
 

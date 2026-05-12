@@ -45,7 +45,7 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
     if (isEdit || year.length < 4) return []
     const date = buildDateFromParts(month, year, precision, day)
     if (!date) return []
-    return chapters.filter(ch => date >= new Date(ch.start) && date <= new Date(ch.end))
+    return chapters.filter(ch => date >= new Date(ch.start) && (ch.end === null || date <= new Date(ch.end)))
   }, [isEdit, month, day, year, precision, chapters])
 
   const [selectedChapterIds, setSelectedChapterIds] = React.useState(() => new Set())
@@ -64,6 +64,31 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
 
   function toggleChapter(id) {
     setSelectedChapterIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  // Ongoing chapters that this milestone's date could close (date >= chapter.start, chapter.end === null).
+  // Only in create mode; unchecked by default.
+  const closableChapters = React.useMemo(() => {
+    if (isEdit || year.length < 4) return []
+    const date = buildDateFromParts(month, year, precision, day)
+    if (!date) return []
+    return chapters.filter(ch => ch.end === null && date >= new Date(ch.start))
+  }, [isEdit, month, day, year, precision, chapters])
+
+  const [closeChapterIds, setCloseChapterIds] = React.useState(() => new Set())
+
+  // Reset close selections when the date changes
+  React.useEffect(() => {
+    if (isEdit) return
+    setCloseChapterIds(new Set())
+  }, [closableChapters, isEdit])
+
+  function toggleCloseChapter(id) {
+    setCloseChapterIds(prev => {
       const next = new Set(prev)
       next.has(id) ? next.delete(id) : next.add(id)
       return next
@@ -169,6 +194,7 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
         url: url.trim(),
         mainTimelineVisibility: visibility,
         chapterIds: isEdit ? undefined : [...selectedChapterIds],
+        closeChapterIds: isEdit ? undefined : [...closeChapterIds],
         recurrence: (!isEdit && recurrence) ? 'annual' : (existing?.recurrence ?? null),
         recurrence_id: existing?.recurrence_id ?? null,
         recurrenceEndYear: (!isEdit && recurrence && year.length >= 4)
@@ -519,6 +545,27 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
                     className="chapter-member-check"
                     checked={selectedChapterIds.has(ch.id)}
                     onChange={() => toggleChapter(ch.id)}
+                  />
+                  <span className="chapter-member-dot" style={{ background: ch.color }} />
+                  <span className="chapter-member-title">{ch.title}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Close ongoing chapters at this milestone's date — create mode only, unchecked by default */}
+        {!isEdit && closableChapters.length > 0 && (
+          <div className="sheet-field">
+            <label className="field-label">close ongoing chapter at this date</label>
+            <div className="chapter-members-list">
+              {closableChapters.map(ch => (
+                <label key={ch.id} className="chapter-member-row">
+                  <input
+                    type="checkbox"
+                    className="chapter-member-check"
+                    checked={closeChapterIds.has(ch.id)}
+                    onChange={() => toggleCloseChapter(ch.id)}
                   />
                   <span className="chapter-member-dot" style={{ background: ch.color }} />
                   <span className="chapter-member-title">{ch.title}</span>

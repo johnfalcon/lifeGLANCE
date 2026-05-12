@@ -14,11 +14,12 @@ const REM_PX = { small: 19, normal: 22, big: 26, bigger: 30 }
 // Greedy interval-graph colouring: assigns each chapter the lowest row index that
 // doesn't conflict with an already-placed chapter in the same row.
 function assignChapterRows(chapters) {
+  const todayMs = Date.now()
   const sorted = [...chapters].sort((a, b) => new Date(a.start) - new Date(b.start))
   const rowEnds = [] // rowEnds[i] = end-time of the last chapter placed in row i
   return sorted.map(chapter => {
     const s = new Date(chapter.start).getTime()
-    const e = new Date(chapter.end).getTime()
+    const e = chapter.end ? new Date(chapter.end).getTime() : todayMs
     let row = rowEnds.findIndex(end => end <= s)
     if (row === -1) { row = rowEnds.length; rowEnds.push(e) }
     else rowEnds[row] = e
@@ -26,8 +27,9 @@ function assignChapterRows(chapters) {
   })
 }
 
-// Human-readable duration string, e.g. "4y 2mo" or "8mo".
+// Human-readable duration string, e.g. "4y 2mo" or "8mo". Returns "ongoing" for open-ended chapters.
 function chapterSpan(startIso, endIso) {
+  if (!endIso) return 'ongoing'
   const s = new Date(startIso), e = new Date(endIso)
   const totalMonths = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth())
   const yrs = Math.floor(totalMonths / 12)
@@ -336,33 +338,68 @@ const Timeline = forwardRef(function Timeline(
             <line x1={0} y1={msAxisY} x2={w} y2={msAxisY}
               stroke="rgba(232,224,208,0.08)" strokeWidth={1} />
 
+            {/* Gradient defs for ongoing chapter fade-out past today */}
+            <defs>
+              {chaptersWithRows.filter(ch => !ch.end).map(ch => (
+                <linearGradient
+                  key={`fade-${ch.id}`}
+                  id={`chapter-fade-${ch.id}`}
+                  x1={todayX} y1={0}
+                  x2={todayX + 50} y2={0}
+                  gradientUnits="userSpaceOnUse"
+                >
+                  <stop offset="0%" stopColor={ch.color} stopOpacity={0.18} />
+                  <stop offset="100%" stopColor={ch.color} stopOpacity={0} />
+                </linearGradient>
+              ))}
+            </defs>
+
             {chaptersWithRows.map(chapter => {
               const chapterStartX = dateToX(new Date(chapter.start).getTime(), startMs, endMs, w)
-              const chapterEndX   = dateToX(new Date(chapter.end).getTime(),   startMs, endMs, w)
+              const isOngoing     = !chapter.end
+
+              // For ongoing chapters the bar extends to todayX + fade width; for bounded, to chapterEndX.
+              const chapterEndX = isOngoing
+                ? todayX + 50
+                : dateToX(new Date(chapter.end).getTime(), startMs, endMs, w)
 
               // Skip chapters that are entirely off-screen
               if (chapterEndX < -10 || chapterStartX > w + 10) return null
-
-              // Clamp visible portion to viewport
-              const x1   = Math.max(0, chapterStartX)
-              const x2   = Math.min(w, chapterEndX)
-              const barW = x2 - x1
-              if (barW < 1) return null
+              // Skip ongoing chapters whose start date is still in the future (nothing has happened yet)
+              if (isOngoing && chapterStartX > todayX + 5) return null
 
               const barY = msAxisY + CHAPTER_BAND_PAD + chapter._row * (CHAPTER_ROW_H + CHAPTER_ROW_GAP)
               const barH = CHAPTER_ROW_H
+
+              // For ongoing: solid portion ends at todayX; fade portion starts there.
+              const solidX1 = Math.max(0, chapterStartX)
+              const solidX2 = isOngoing
+                ? Math.min(w, Math.max(solidX1, todayX))
+                : Math.min(w, chapterEndX)
+              const solidW  = solidX2 - solidX1
+              if (!isOngoing && solidW < 1) return null
+
+              // Fade rect for ongoing chapters (visible only when today is on-screen)
+              const fadeX1 = Math.max(0, todayX)
+              const fadeX2 = Math.min(w, todayX + 50)
+              const fadeW  = Math.max(0, fadeX2 - fadeX1)
+              const showFade = isOngoing && todayX < w && fadeW > 0
+
+              // Total visible width for label purposes
+              const visX2  = showFade ? Math.max(solidX2, fadeX2) : solidX2
+              const visW   = visX2 - solidX1
 
               // Label truncation: Courier Prime is monospace.
               // At 0.45em, char width ≈ remPx * 0.45 * 0.60 px
               const labelFontPx  = remPx * 0.45
               const labelCharW   = labelFontPx * 0.60
-              const labelMaxCh   = Math.floor((barW - 14) / labelCharW)
+              const labelMaxCh   = Math.floor((visW - 14) / labelCharW)
               const labelText    = labelMaxCh > 2
                 ? (chapter.title.length <= labelMaxCh ? chapter.title : chapter.title.slice(0, labelMaxCh - 1) + '…')
                 : ''
 
               const startYear = new Date(chapter.start).getFullYear()
-              const endYear   = new Date(chapter.end).getFullYear()
+              const endYear   = chapter.end ? new Date(chapter.end).getFullYear() : null
 
               return (
                 <g key={chapter.id}
@@ -382,11 +419,20 @@ const Timeline = forwardRef(function Timeline(
                     onChapterDoubleClick?.(chapter)
                   }}
                 >
-                  {/* Bar body */}
-                  <rect x={x1} y={barY} width={barW} height={barH}
-                    fill={chapter.color} fillOpacity={0.18}
-                    stroke={chapter.color} strokeOpacity={0.32} strokeWidth={0.5}
-                    rx={2} />
+                  {/* Solid bar body */}
+                  {solidW > 0 && (
+                    <rect x={solidX1} y={barY} width={solidW} height={barH}
+                      fill={chapter.color} fillOpacity={0.18}
+                      stroke={chapter.color} strokeOpacity={0.32} strokeWidth={0.5}
+                      rx={2} />
+                  )}
+
+                  {/* Fade tail — ongoing chapters only, past the today marker */}
+                  {showFade && (
+                    <rect x={fadeX1} y={barY} width={fadeW} height={barH}
+                      fill={`url(#chapter-fade-${chapter.id})`}
+                      rx={2} />
+                  )}
 
                   {/* Left-edge accent stripe — only when the chapter start is on-screen */}
                   {chapterStartX >= 0 && chapterStartX < w && (
@@ -395,9 +441,9 @@ const Timeline = forwardRef(function Timeline(
                   )}
 
                   {/* Title label — years zoom or closer, and bar at least 7% of viewport */}
-                  {daysPerPx < 6.0 && barW >= w * 0.07 && labelText && (
+                  {daysPerPx < 6.0 && visW >= w * 0.07 && labelText && (
                     <text
-                      x={(x1 + x2) / 2}
+                      x={(solidX1 + Math.min(solidX2, w)) / 2}
                       textAnchor="middle"
                       y={barY + Math.round(barH * 0.73)}
                       fill={chapter.color}
@@ -408,7 +454,7 @@ const Timeline = forwardRef(function Timeline(
                   )}
 
                   {/* Start/end year markers — months zoom or closer, bar at least 45% of viewport */}
-                  {daysPerPx < 0.8 && barW >= w * 0.45 && chapterStartX >= 4 && (
+                  {daysPerPx < 0.8 && visW >= w * 0.45 && chapterStartX >= 4 && (
                     <text
                       x={chapterStartX + 4}
                       y={barY + barH - 2}
@@ -418,7 +464,7 @@ const Timeline = forwardRef(function Timeline(
                       opacity={0.60}
                     >{startYear}</text>
                   )}
-                  {daysPerPx < 0.8 && barW >= w * 0.45 && chapterEndX <= w - 4 && (
+                  {!isOngoing && daysPerPx < 0.8 && visW >= w * 0.45 && chapterEndX <= w - 4 && (
                     <text
                       x={chapterEndX - 4}
                       y={barY + barH - 2}
@@ -820,7 +866,7 @@ const Timeline = forwardRef(function Timeline(
             {chapterTip.chapter.title}
           </div>
           <div style={{ fontSize: '0.55rem', color: 'rgba(232,224,208,0.55)', marginTop: 2 }}>
-            {chapterSpan(chapterTip.chapter.start, chapterTip.chapter.end)}
+            {chapterTip.chapter.end ? chapterSpan(chapterTip.chapter.start, chapterTip.chapter.end) : 'ongoing'}
           </div>
         </div>
       )}
