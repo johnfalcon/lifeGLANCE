@@ -666,6 +666,11 @@ export default function TimelineView({ milestones, setMilestones }) {
             )
           }
           setChapters(updated)
+          // Sync drilledChapter if it was modified (new member or closed).
+          if (drilledChapter) {
+            const refreshed = updated.find(c => c.id === drilledChapter.id)
+            if (refreshed) setDrilledChapter(refreshed)
+          }
         }
         audio.playChime()
       }
