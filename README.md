@@ -78,7 +78,7 @@ Use the hosted version at [lifeglance.app](https://lifeglance.app), or self-host
 
 ## Storage
 
-All data is stored locally in your browser using IndexedDB. Nothing is sent to a server.
+By default, all data is stored locally in your browser using IndexedDB. Nothing is sent to a server.
 
 | Store | Contents |
 |---|---|
@@ -88,7 +88,9 @@ All data is stored locally in your browser using IndexedDB. Nothing is sent to a
 
 Media blobs are fetched lazily — only when you open a milestone detail or click play — so startup time stays fast regardless of how many attachments you have.
 
-**Backup:** use *Settings → save backup* to export a JSON file of your milestone records. **Audio and video attachments are not included in the JSON backup — re-attach them after restoring if needed.**
+**Backup options:**
+- *Settings → save backup* — exports a JSON file containing milestones, chapters, and photos (as base64). Audio and video are not included; re-attach those after restoring.
+- **Optional NAS-sync sidecar** (this fork) — runs a small companion container that the app pushes every change to. Photos travel in the same JSON; audio and video are mirrored as separate binary blobs. The data lives in a host-mounted folder you control, so it survives browser cache wipes and is part of your normal backup story. Disabled if `VITE_SYNC_URL` is not set at build time — the app still works fully standalone. See [Docker](#docker).
 
 **Storage limits** vary by browser. Chrome and Firefox allow multiple GB. Safari on iOS is more restrictive and may evict data for origins not visited for 7+ days unless the app is installed to the home screen. The current usage and available quota are shown in the Help modal (`?`).
 
@@ -118,12 +120,65 @@ npm run preview # serve the production build locally
 
 ## Docker
 
-```bash
-docker build -t lifeglance .
-docker run -p 8080:80 lifeglance
+Two services ship in this repo:
+
+| Image | Role | Default port |
+|---|---|---|
+| `lifeglance` | The React/Vite app, served by nginx | `8078` (host) |
+| `lifeglance-sync` | Node 20 sidecar that persists state to a host-mounted folder | `8089` (host) → `8079` (container) |
+
+Both are built by the GitHub Actions workflow on every push to `main` and published to GHCR under the fork's namespace (`ghcr.io/<owner>/lifeglance` and `…/lifeglance-sync`).
+
+### Compose
+
+`docker-compose.yml` in this repo is the canonical stack — copy it into a folder on your host (recommended: alongside a `./data` subfolder) and `docker compose up -d`.
+
+```yaml
+name: lifeglance
+
+services:
+  lifeglance:
+    image: ghcr.io/johnfalcon/lifeglance:latest
+    container_name: lifeglance
+    restart: unless-stopped
+    ports:
+      - "8078:80"
+    depends_on:
+      - lifeglance-sync
+
+  lifeglance-sync:
+    image: ghcr.io/johnfalcon/lifeglance-sync:latest
+    container_name: lifeglance-sync
+    restart: unless-stopped
+    ports:
+      # Host 8089 -> container 8079. Change the host side if 8089 is
+      # already used on your machine. If you change it, you must also
+      # rebuild the lifeglance image with a matching VITE_SYNC_URL so
+      # the browser can find the sidecar.
+      - "8089:8079"
+    volumes:
+      - ./data:/data
+    environment:
+      - DATA_DIR=/data
+      - PORT=8079
 ```
 
-The image builds with Node 20 Alpine and serves the static output via nginx.
+After first start, visit `http://<host>:8078`. On every change the app pushes the full state to the sidecar, which atomically writes `./data/state.json` (rotating the previous file to `state.json.bak`). Audio/video blobs go to `./data/media/<id>.bin` alongside a small `*.meta.json` describing the MIME type. On boot, if the browser's IndexedDB is empty (cache cleared, new device), the app restores from the sidecar automatically.
+
+### Standalone (no sidecar)
+
+If you don't want the sync sidecar, build the `lifeglance` image with `VITE_SYNC_URL=""` and run it alone:
+
+```bash
+docker build -t lifeglance --build-arg VITE_SYNC_URL="" .
+docker run -p 8078:80 lifeglance
+```
+
+All sync calls become no-ops; the app behaves identically to the upstream version (browser-only).
+
+### Sidecar API
+
+The sidecar (`sync-server/`) is a tiny dependency-free Node 20 service. See [`sync-server/README.md`](sync-server/README.md) for the full endpoint list and storage layout.
 
 ---
 

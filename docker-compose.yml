@@ -1,28 +1,39 @@
-# Reference compose for running lifeGLANCE + the NAS-sync sidecar together
-# from source. For production deployment, see your downstream compose file
-# (which pulls pre-built images from GHCR rather than building locally).
+# lifeGLANCE with NAS-sync sidecar.
+#
+# Both services in one stack — `docker compose up -d` brings up both.
+# State (milestones, chapters, photos as base64, plus audio/video blobs)
+# is persisted to ./data on the host, so it survives browser-cache wipes
+# and is part of your normal host-level backup.
+#
+# Images are pre-built by the GitHub Actions workflow in this repo. If
+# you fork it, the workflow auto-pushes to ghcr.io/<your-user>/lifeglance
+# and ghcr.io/<your-user>/lifeglance-sync. Edit the image: lines below
+# to point at your namespace.
+
+name: lifeglance
 
 services:
   lifeglance:
-    build:
-      context: .
-      args:
-        # Where the sync sidecar is reachable from your browser. For most
-        # setups this is http://<lan-ip>:8079.
-        VITE_SYNC_URL: ${VITE_SYNC_URL:-http://localhost:8079}
-    image: lifeglance:local
-    ports:
-      - "${LIFEGLANCE_PORT:-8078}:80"
+    image: ghcr.io/johnfalcon/lifeglance:latest
+    container_name: lifeglance
     restart: unless-stopped
+    ports:
+      - "8078:80"
     depends_on:
       - lifeglance-sync
 
   lifeglance-sync:
-    build:
-      context: ./sync-server
-    image: lifeglance-sync:local
+    image: ghcr.io/johnfalcon/lifeglance-sync:latest
+    container_name: lifeglance-sync
+    restart: unless-stopped
     ports:
-      - "${LIFEGLANCE_SYNC_PORT:-8079}:8079"
+      # Host 8089 -> container 8079. Change the host side if 8089 is
+      # already used on your machine. If you change it, you must also
+      # rebuild the lifeglance image with a matching VITE_SYNC_URL so
+      # the browser can find the sidecar.
+      - "8089:8079"
     volumes:
       - ./data:/data
-    restart: unless-stopped
+    environment:
+      - DATA_DIR=/data
+      - PORT=8079
