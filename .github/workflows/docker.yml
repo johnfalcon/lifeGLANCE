@@ -1,8 +1,17 @@
 name: Build & Push to GHCR
 
 on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
   release:
     types: [published]
+  workflow_dispatch:
+
+# Sync URL is baked into the lifeglance bundle at build time. Set this to the
+# URL where the sync sidecar will be reachable from a browser on your LAN.
+env:
+  VITE_SYNC_URL: http://192.168.7.18:8079
 
 jobs:
   build-push:
@@ -12,6 +21,19 @@ jobs:
     permissions:
       contents: read
       packages: write
+
+    strategy:
+      matrix:
+        include:
+          - name: lifeglance
+            context: .
+            dockerfile: Dockerfile
+            build_args: |
+              VITE_SYNC_URL=${{ env.VITE_SYNC_URL }}
+          - name: lifeglance-sync
+            context: ./sync-server
+            dockerfile: ./sync-server/Dockerfile
+            build_args: ""
 
     steps:
       - name: Checkout
@@ -27,23 +49,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase owner
+        id: owner
+        run: echo "value=${OWNER,,}" >> "$GITHUB_OUTPUT"
+        env:
+          OWNER: ${{ github.repository_owner }}
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/krelltunez/lifeglance
+          images: ghcr.io/${{ steps.owner.outputs.value }}/${{ matrix.name }}
           tags: |
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
 
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          build-args: ${{ matrix.build_args }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}

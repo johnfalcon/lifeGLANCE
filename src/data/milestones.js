@@ -1,5 +1,6 @@
 import { dbGetAll, dbAdd, dbPut, dbDelete, dbClearAllMedia } from './db'
 import { categoryColor } from '../utils/colors'
+import { schedulePushState } from './syncClient'
 
 export function uid() {
   if (typeof crypto.randomUUID === 'function') {
@@ -57,6 +58,7 @@ export async function loadMilestones() {
 export async function addMilestone(data) {
   const m = buildMilestone(data)
   await dbAdd(m)
+  schedulePushState()
   return m
 }
 
@@ -81,11 +83,13 @@ export async function updateMilestone(id, updates, existing) {
     updated_at: now,
   }
   await dbPut(m)
+  schedulePushState()
   return m
 }
 
 export async function deleteMilestone(id) {
   await dbDelete(id)
+  schedulePushState()
 }
 
 // Clear all milestones and replace with the supplied array (preserves original IDs).

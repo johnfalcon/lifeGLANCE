@@ -1,3 +1,5 @@
+import { pushMedia } from './syncClient'
+
 const DB_NAME    = 'lifeglance'
 const DB_VERSION = 5          // v5: rename eras store to chapters
 const STORE      = 'milestones'
@@ -165,7 +167,12 @@ export function dbDelete(id) {
 export function dbPutMedia(id, blob, mimeType) {
   return new Promise((resolve, reject) => {
     const req = mediaTx('readwrite').put({ id, blob, mimeType })
-    req.onsuccess = () => resolve()
+    req.onsuccess = () => {
+      // Mirror audio/video blob to the sync server. Photos travel in state.json
+      // as base64, so dbPutPhoto does not need this — only audio/video does.
+      pushMedia(id, blob, mimeType)
+      resolve()
+    }
     req.onerror   = () => reject(req.error)
   })
 }
@@ -183,6 +190,9 @@ export function dbGetMedia(id) {
 }
 
 // Wipes the entire media store (called on backup restore so orphans don't linger).
+// Intentionally does NOT touch the remote sync store — boot-time hydration calls
+// this right before re-populating from the server's blobs, so wiping remote
+// would defeat the purpose.
 export function dbClearAllMedia() {
   return new Promise((resolve, reject) => {
     const req = mediaTx('readwrite').clear()

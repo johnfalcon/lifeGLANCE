@@ -1,6 +1,28 @@
+# Reference compose for running lifeGLANCE + the NAS-sync sidecar together
+# from source. For production deployment, see your downstream compose file
+# (which pulls pre-built images from GHCR rather than building locally).
+
 services:
   lifeglance:
-    image: ghcr.io/krelltunez/lifeglance:latest
+    build:
+      context: .
+      args:
+        # Where the sync sidecar is reachable from your browser. For most
+        # setups this is http://<lan-ip>:8079.
+        VITE_SYNC_URL: ${VITE_SYNC_URL:-http://localhost:8079}
+    image: lifeglance:local
     ports:
-      - "6868:80"
+      - "${LIFEGLANCE_PORT:-8078}:80"
+    restart: unless-stopped
+    depends_on:
+      - lifeglance-sync
+
+  lifeglance-sync:
+    build:
+      context: ./sync-server
+    image: lifeglance-sync:local
+    ports:
+      - "${LIFEGLANCE_SYNC_PORT:-8079}:8079"
+    volumes:
+      - ./data:/data
     restart: unless-stopped

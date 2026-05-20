@@ -1,5 +1,6 @@
 import { dbGetAllChapters, dbGetChapter, dbAddChapter, dbPutChapter, dbDeleteChapter } from './db'
 import { uid } from './milestones'
+import { schedulePushState } from './syncClient'
 
 // Valid color values are the same hex strings used for milestone categories and
 // the settings palette (COLOR_PALETTE in SettingsModal).  No runtime validation
@@ -33,6 +34,7 @@ export function buildChapter({
 export async function createChapter(data) {
   const chapter = buildChapter(data)
   await dbAddChapter(chapter)
+  schedulePushState()
   return chapter
 }
 
@@ -52,11 +54,13 @@ export async function updateChapter(id, updates, existing) {
     updated_at: new Date().toISOString(),
   }
   await dbPutChapter(chapter)
+  schedulePushState()
   return chapter
 }
 
 export async function deleteChapter(id) {
   await dbDeleteChapter(id)
+  schedulePushState()
 }
 
 // Adds milestoneId to chapter.milestoneIds; no-op if already present.
@@ -70,6 +74,7 @@ export async function addMilestoneToChapter(chapterId, milestoneId) {
     updated_at:   new Date().toISOString(),
   }
   await dbPutChapter(updated)
+  schedulePushState()
   return updated
 }
 
@@ -83,6 +88,7 @@ export async function removeMilestoneFromChapter(chapterId, milestoneId) {
     updated_at:   new Date().toISOString(),
   }
   await dbPutChapter(updated)
+  schedulePushState()
   return updated
 }
 
@@ -100,6 +106,8 @@ export async function getChaptersForMilestone(milestoneId) {
 }
 
 // Replaces all chapter records with the supplied array (used by backup restore).
+// Intentionally does NOT trigger schedulePushState — boot-time hydration calls
+// this with state fetched from the server, so re-pushing would be a no-op cycle.
 export async function restoreChapters(items) {
   const existing = await dbGetAllChapters()
   for (const chapter of existing) await dbDeleteChapter(chapter.id)
