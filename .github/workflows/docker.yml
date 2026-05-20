@@ -28,12 +28,9 @@ jobs:
           - name: lifeglance
             context: .
             dockerfile: Dockerfile
-            build_args: |
-              VITE_SYNC_URL=${{ env.VITE_SYNC_URL }}
           - name: lifeglance-sync
             context: ./sync-server
             dockerfile: ./sync-server/Dockerfile
-            build_args: ""
 
     steps:
       - name: Checkout
@@ -76,6 +73,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: ${{ matrix.build_args }}
+          build-args: |
+            VITE_SYNC_URL=${{ env.VITE_SYNC_URL }}
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
