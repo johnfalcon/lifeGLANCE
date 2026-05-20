@@ -11,7 +11,7 @@ on:
 # Sync URL is baked into the lifeglance bundle at build time. Set this to the
 # URL where the sync sidecar will be reachable from a browser on your LAN.
 env:
-  VITE_SYNC_URL: http://192.168.7.18:8079
+  VITE_SYNC_URL: http://192.168.7.18:8089
 
 jobs:
   build-push:
